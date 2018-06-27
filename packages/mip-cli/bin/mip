@@ -32,7 +32,7 @@ checkVersion().then(() => {
     })
     .parse(process.argv)
 
-  // if input only `mip2`, show help info
+  // if input only `mip`, show help info
   if (cli.program.args[0] === 'addPlugin' && cli.program.args.length === 1) {
     cli.program.help()
   }

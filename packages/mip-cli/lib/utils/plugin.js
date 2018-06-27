@@ -13,7 +13,7 @@ const chalk = require('chalk')
 // under specific scope：@somescope/mip-cli-plugin-xxx
 const pluginREG = /^(mip-|@[\w-]+\/mip-)cli-plugin-/
 
-// mip2 & mip-cli-plugin-xxx install path
+// mip & mip-cli-plugin-xxx install path
 const installedPath = path.join(__dirname, '../../..')
 // const installedPath = path.resolve(__dirname, '../../../../node_modules') // for dev mode only
 
@@ -69,7 +69,7 @@ exports.resolve = pkg => {
 
 exports.resolveCommand = pkg => {
   // if args[0] is full package name, covert to executable main command
-  // `mip2 mip-cli-pulgin-test` => `mip2 test`
+  // `mip mip-cli-pulgin-test` => `mip test`
   return pkg.replace(pluginREG, '')
 }
 

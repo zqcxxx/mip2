@@ -9,7 +9,7 @@ cli.setup({
     '',
     '  Examples:',
     cli.chalk.gray('    # 初始化 MIP 项目'),
-    '    $ mip2 init'
+    '    $ mip init'
   ].join('\n')
 })
 

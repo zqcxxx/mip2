@@ -14,9 +14,9 @@ const args = cli.setup({
     '',
     '  Examples:',
     cli.chalk.gray('    # 新增 mip 组件'),
-    '    $ mip2 add mip-demo',
+    '    $ mip add mip-demo',
     cli.chalk.gray('    # 新增 mip 组件，强制覆盖同名组件'),
-    '    $ mip2 add mip-demo -f'
+    '    $ mip add mip-demo -f'
   ].join('\n')
 })
 
@@ -26,7 +26,7 @@ if (!args[0].match(/^mip-[\w-]+$/)) {
 }
 
 if (!fs.existsSync(path.resolve('components'))) {
-  cli.warn('请在项目根目录执行 mip2 add 命令')
+  cli.warn('请在项目根目录执行 mip add 命令')
   return
 }
 

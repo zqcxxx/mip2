@@ -5,7 +5,7 @@ const addPlugin = require('../lib/addPlugin')
 
 cli.program.parse(process.argv)
 
-// input only `mip2`, show help and do nothing
+// input only `mip`, show help and do nothing
 if (!cli.program.args.length) {
   return
 }

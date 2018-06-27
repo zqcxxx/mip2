@@ -15,7 +15,7 @@ cli.setup({
     '',
     '  Examples:',
     cli.chalk.gray('    # 生成 Service Worker 文件'),
-    '    $ mip2 sw'
+    '    $ mip sw'
   ].join('\n')
 })
 

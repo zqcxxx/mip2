@@ -11,7 +11,7 @@ const chalk = require('chalk')
 module.exports = function checkVersion () {
   return new Promise((resolve, reject) => {
     request({
-      url: 'https://registry.npmjs.org/mip2',
+      url: 'https://registry.npmjs.org/mip',
       timeout: 1000
     }, (err, res, body) => {
       if (!err && res.statusCode === 200) {
@@ -24,7 +24,7 @@ module.exports = function checkVersion () {
           console.log('  最新版本: ' + chalk.green(latestVersion))
           console.log('  当前版本: ' + chalk.red(localVersion))
           console.log()
-          console.log(' 您可以使用 npm update -g mip2 进行更新')
+          console.log(' 您可以使用 npm update -g mip 进行更新')
         }
       }
       resolve()

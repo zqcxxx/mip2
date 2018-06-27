@@ -13,9 +13,9 @@ const args = cli.setup({
     '',
     '  Examples:',
     cli.chalk.gray('    # 校验 mip 组件，输入组件目录'),
-    '    $ mip2 validate -c ./mip-demo',
+    '    $ mip validate -c ./mip-demo',
     cli.chalk.gray('    # 校验 mip 页面，输入页面路径'),
-    '    $ mip2 validate -p page.html'
+    '    $ mip validate -p page.html'
   ].join('\n')
 })
 

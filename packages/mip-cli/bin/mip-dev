@@ -19,7 +19,7 @@ cli.setup({
     '',
     '  Examples:',
     cli.chalk.gray('    # 启动MIP调试服务器'),
-    '    $ mip2 dev'
+    '    $ mip dev'
   ].join('\n')
 })
 
