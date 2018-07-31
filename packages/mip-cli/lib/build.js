@@ -31,8 +31,8 @@ module.exports = async function ({
     if (clean) {
       await fs.remove(output)
     }
-
     await builder.build()
+
     cli.info('编译成功！')
   } catch (e) {
     cli.error('编译失败')

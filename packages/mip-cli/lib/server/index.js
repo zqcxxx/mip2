@@ -17,9 +17,15 @@ module.exports = class Server {
     port = 8111,
     dir,
     livereload,
-    asset = '/',
+    asset,
     ignore
   }) {
+    if (!asset) {
+      asset = 'http://127.0.0.1:' + port
+    } else {
+      asset = asset.replace(/\/$/, '').replace(/:\d+/, '') + ':' + port
+    }
+
     this.port = port
     this.dir = dir
     this.livereload = livereload
@@ -40,6 +46,7 @@ module.exports = class Server {
     this.router = new Router()
     this.router
       .get(['/:id([^\\.]*)', '/:id([^\\.]+\\.html)'], ...htmlMiddlewares)
+      // .get('/mip-components-webpack-helpers.js', koaStatic(path.resolve(__dirname, '../../node_modules/mip-components-webpack-helpers/dist')))
       .get('*', ...scriptMiddlewares, koaStatic(this.dir))
 
     this.app

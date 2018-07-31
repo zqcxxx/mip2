@@ -15,14 +15,18 @@ class Compile {
     this._el = document.documentElement
   }
 
-  start (data, win) {
+  start (data) {
+    if (!data || !util.objNotEmpty(data)) {
+      return
+    }
     this.data = data
-    this._compileElement(win.document.documentElement)
+    this._compileElement(this._el)
     // this._fragment = this._cloneNode();
     // this._compileElement(this._fragment);
     // this._el.appendChild(this._fragment);
   }
 
+  /* istanbul ignore next */
   _cloneNode () {
     let child
     let fragment = document.createDocumentFragment()
@@ -58,6 +62,7 @@ class Compile {
 
   _compileAttributes (node) {
     let me = this
+    /* istanbul ignore if */
     if (!node) {
       return
     }
@@ -76,14 +81,16 @@ class Compile {
     let attrName = directive.name
     let data
 
-    if (/^bind:/.test(fnName)) {
+    if (/^bind:.*/.test(fnName)) {
       let attr = fnName.slice(5)
       if (attr === 'class' || attr === 'style') {
         let attrKey = attr.charAt(0).toUpperCase() + attr.slice(1)
         try {
-          let fn = this.getWithResult(expression)
-          data = util['parse' + attrKey](fn.call(this.data))
+          let fn = util.getWithResult.bind(this, expression)
+          let getter = fn.call(this.data)
+          data = util['parse' + attrKey](getter.call(this.data, this.data))
         } catch (e) {
+          // istanbul ignore next
           data = {}
         }
         expression = `${attrKey}:${expression}`
@@ -98,9 +105,7 @@ class Compile {
     this._listenerFormElement(node, directive, expression)
     /* eslint-disable */
     new Watcher(node, me.data, attrName, expression, function (dir, newVal) {
-      if (typeof me[fnName] === 'function') {
-        me[fnName](node, dir, newVal)
-      }
+      me[fnName] && me[fnName](node, dir, newVal)
     })
     /* eslint-enable */
   }
@@ -113,8 +118,9 @@ class Compile {
         return
       }
       let handle = function (e) {
-        let fn = this.setWithResult(expression, e.target.value)
-        fn.call(this.data)
+        let fn = util.setWithResult.bind(this, expression, e.target.value)
+        let setter = fn.call(this.data)
+        setter.call(this.data)
       }
       node.addEventListener('input', handle.bind(this))
     }
@@ -127,27 +133,26 @@ class Compile {
   bind (node, directive, newVal) {
     let reg = /bind:(.*)/
     let result = reg.exec(directive)
-    if (!result.length) {
+    if (!result) {
       return
     }
     let attr = result[1]
+    /* istanbul ignore if */
     if (attr !== 'disabled' && node.disabled) {
       Object.assign(window.m, this.origin)
       return
     }
     if (attr === 'class') {
       if (util.objNotEmpty(newVal)) {
-        for (let k of Object.keys(newVal)) {
-          node.classList.toggle(k, newVal[k])
-        }
+        Object.keys(newVal).forEach(k => node.classList.toggle(k, newVal[k]))
         node.removeAttribute(directive)
       }
     } else if (attr === 'style') {
       if (util.objNotEmpty(newVal)) {
         let staticStyle = util.styleToObject(node.getAttribute(attr) || '')
-        for (let styleAttr of Object.keys(newVal)) {
+        Object.keys(newVal).forEach(styleAttr => {
           staticStyle[styleAttr] = newVal[styleAttr]
-        }
+        })
         node.setAttribute(attr, util.objectToStyle(staticStyle))
         node.removeAttribute(directive)
       }
@@ -176,24 +181,17 @@ class Compile {
     }
     let value
     try {
-      let fn = this.getWithResult(exp)
-      value = fn.call(this.data)
-      value !== '' && node.removeAttribute(attrName)
+      let fn = util.getWithResult.bind(this, exp)
+      let getter = fn.call(this.data)
+      value = getter.call(this.data, this.data)
+      if (value !== '' && typeof value !== 'undefined') {
+        node.removeAttribute(attrName)
+      }
     } catch (e) {
       // console.error(e)
     }
     return value
   }
-
-  /* eslint-disable */
-  getWithResult (exp) {
-    return new Function((`with(this){try {return ${exp}} catch(e) {throw e}}`))
-  }
-
-  setWithResult (exp, value) {
-    return new Function((`with(this){try {${exp} = "${value}"} catch (e) {throw e}}`))
-  }
-  /* eslint-enable */
 }
 
 export default Compile

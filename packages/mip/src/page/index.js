@@ -3,193 +3,55 @@
  * @author wangyisheng@baidu.com (wangyisheng)
  */
 
-import {isSameRoute, getFullPath} from './util/route'
 import {
   ensureMIPShell,
-  createIFrame,
   getIFrame,
-  frameMoveIn,
-  frameMoveOut,
-  createLoading,
-  createFadeHeader
+  toggleFadeHeader
 } from './util/dom'
+import {getCleanPageId} from './util/path'
 import Debouncer from './util/debounce'
-// import {supportsPassive} from './util/feature-detect'
+import {supportsPassive} from './util/feature-detect'
 import {scrollTo} from './util/ease-scroll'
 import {
-  NON_EXISTS_PAGE_ID,
-  SCROLL_TO_ANCHOR_CUSTOM_EVENT,
-  DEFAULT_SHELL_CONFIG,
-  MESSAGE_APPSHELL_EVENT,
+  MAX_PAGE_NUM,
+  CUSTOM_EVENT_SCROLL_TO_ANCHOR,
+  CUSTOM_EVENT_SHOW_PAGE,
   MESSAGE_ROUTER_PUSH,
   MESSAGE_ROUTER_REPLACE,
-  MESSAGE_SET_MIP_SHELL_CONFIG,
-  MESSAGE_UPDATE_MIP_SHELL_CONFIG,
-  MESSAGE_SYNC_PAGE_CONFIG,
-  MESSAGE_REGISTER_GLOBAL_COMPONENT
-  // MESSAGE_APPSHELL_HEADER_SLIDE_UP,
-  // MESSAGE_APPSHELL_HEADER_SLIDE_DOWN,
+  MESSAGE_ROUTER_BACK,
+  MESSAGE_ROUTER_FORWARD,
+  MESSAGE_CROSS_ORIGIN,
+  MESSAGE_BROADCAST_EVENT
 } from './const/index'
 
-import {customEmit} from '../vue-custom-element/utils/custom-event'
-import util from '../util/index'
+import {customEmit} from '../util/custom-event'
 import viewport from '../viewport'
-import Router from './router/index'
-// import AppShell from './appshell'
-import GlobalComponent from './appshell/globalComponent'
 import '../styles/mip.less'
 
 /**
  * use passive event listeners if supported
  * https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md
  */
-// const eventListenerOptions = supportsPassive ? {passive: true} : false
-const eventListenerOptions = false
+const eventListenerOptions = supportsPassive ? {passive: true} : /* istanbul ignore next */false
 
 class Page {
   constructor () {
-    try {
-      if (window.parent && window.parent.MIP_ROOT_PAGE) {
-        this.isRootPage = false
-      } else {
-        window.MIP_ROOT_PAGE = true
-        this.isRootPage = true
-      }
-    } catch (e) {
-      // Cross domain error means root page
-      window.MIP_ROOT_PAGE = true
-      this.isRootPage = true
-    }
+    Object.assign(this, window.MIP.viewer.pageMeta)
     this.pageId = undefined
+    this.fullpath = undefined
+    this.pageMeta = undefined
 
     // root page
-    // this.appshell = undefined
     this.children = []
     this.currentPageId = undefined
-    this.messageHandlers = []
-    this.currentPageMeta = {}
-    this.direction = undefined
-    this.appshellRoutes = []
-    this.appshellCache = Object.create(null)
-
-    // sync from mip-shell
-    this.transitionContainsHeader = true
-
-    /**
-     * transition will be executed only when `Back` button clicked,
-     * due to a bug when going back with gesture in mobile Safari.
-     */
-    this.allowTransition = false
+    this.targetWindow = window
   }
 
-  /**
-   * clean pageId
-   *
-   * @param {string} pageId pageId
-   * @return {string} cleaned pageId
-   */
-  cleanPageId (pageId) {
-    let hashReg = /#.*$/
-    return pageId && pageId.replace(hashReg, '')
-  }
-
-  initRouter () {
-    let router
-
+  initPageId () {
     // generate pageId
-    this.pageId = this.cleanPageId(window.location.href)
+    this.fullpath = window.location.href
+    this.pageId = getCleanPageId(this.fullpath)
     this.currentPageId = this.pageId
-
-    if (this.isRootPage) {
-      // outside iframe
-      router = new Router()
-      router.rootPage = this
-      router.init()
-      router.listen(this.render.bind(this))
-
-      window.MIP_ROUTER = router
-
-      // handle events emitted by child iframe
-      this.messageHandlers.push((type, data) => {
-        if (type === MESSAGE_ROUTER_PUSH) {
-          router.push(data.route)
-        } else if (type === MESSAGE_ROUTER_REPLACE) {
-          router.replace(data.route)
-        }
-      })
-
-      // handle events emitted by BaiduResult page
-      window.MIP.viewer.onMessage('changeState', ({url}) => {
-        router.replace(url)
-      })
-    } else {
-      // inside iframe
-      router = window.parent.MIP_ROUTER
-      router.rootPage.addChild(this)
-    }
-
-    this.router = router
-  }
-
-  initAppShell () {
-    if (this.isRootPage) {
-      this.globalComponent = new GlobalComponent()
-      this.messageHandlers.push((type, data) => {
-        if (type === MESSAGE_SET_MIP_SHELL_CONFIG) {
-          // Set mip shell config in root page
-          this.appshellRoutes = data.shellConfig
-          this.appshellCache = Object.create(null)
-          this.currentPageMeta = this.findMetaByPageId(this.pageId)
-          createLoading(this.currentPageMeta)
-
-          if (!this.transitionContainsHeader) {
-            createFadeHeader(this.currentPageMeta)
-          }
-
-          // Set bouncy header
-          if (!data.update && this.currentPageMeta.header.bouncy) {
-            this.setupBouncyHeader()
-          }
-        } else if (type === MESSAGE_UPDATE_MIP_SHELL_CONFIG) {
-          if (data.pageMeta) {
-            this.appshellCache[data.pageId] = data.pageMeta
-          } else {
-            data.pageMeta = this.findMetaByPageId(data.pageId)
-          }
-          customEmit(window, 'mipShellEvents', {
-            type: 'updateShell',
-            data
-          })
-        } else if (type === MESSAGE_SYNC_PAGE_CONFIG) {
-          // Sync config from mip-shell
-          this.transitionContainsHeader = data.transitionContainsHeader
-        } else if (type === MESSAGE_REGISTER_GLOBAL_COMPONENT) {
-          // Register global component
-          console.log('register global component')
-          // this.globalComponent.register(data)
-        }
-      })
-
-      // Set iframe height when resizing
-      viewport.on('resize', () => {
-        [].slice.call(document.querySelectorAll('.mip-page__iframe')).forEach($el => {
-          $el.style.height = `${viewport.getHeight()}px`
-        })
-      })
-    } else {
-      this.messageHandlers.push((type, event) => {
-        if (type === MESSAGE_APPSHELL_EVENT) {
-          customEmit(window, event.name, event.data)
-        }
-      })
-
-      let parentPage = window.parent.MIP.viewer.page
-      let currentPageMeta = parentPage.findMetaByPageId(this.pageId)
-
-      if (currentPageMeta.header.bouncy) {
-        this.setupBouncyHeader()
-      }
-    }
   }
 
   /**
@@ -201,10 +63,10 @@ class Page {
     if (hash) {
       try {
         let $hash = document.querySelector(decodeURIComponent(hash))
+        /* istanbul ignore next */
         if ($hash) {
           // scroll to current hash
           scrollTo($hash.offsetTop, {
-            scroller: viewport.scroller,
             scrollTop: viewport.getScrollTop()
           })
         }
@@ -217,52 +79,58 @@ class Page {
    *
    */
   setupBouncyHeader () {
+    if (this.bouncyHeaderSetup) {
+      return
+    }
     const THRESHOLD = 10
     let scrollTop
     let lastScrollTop = 0
     let scrollDistance
     let scrollHeight = viewport.getScrollHeight()
     let viewportHeight = viewport.getHeight()
-    let lastScrollDirection
 
     // viewportHeight = 0 before frameMoveIn animation ends
     // Wait a minute
+    /* istanbul ignore next */
     if (viewportHeight === 0) {
       setTimeout(this.setupBouncyHeader.bind(this), 100)
       return
     }
 
+    this.bouncyHeaderSetup = true
     this.debouncer = new Debouncer(() => {
       scrollTop = viewport.getScrollTop()
       scrollDistance = Math.abs(scrollTop - lastScrollTop)
 
       // ignore bouncy scrolling in iOS
+      /* istanbul ignore next */
       if (scrollTop < 0 || scrollTop + viewportHeight > scrollHeight) {
         return
       }
 
+      /* istanbul ignore next */
       if (lastScrollTop < scrollTop && scrollDistance >= THRESHOLD) {
-        if (lastScrollDirection !== 'up') {
-          lastScrollDirection = 'up'
-          let target = this.isRootPage ? window : window.parent
-          customEmit(target, 'mipShellEvents', {
+        let target = this.isRootPage ? window : window.parent
+        this.emitCustomEvent(target, this.isCrossOrigin, {
+          name: 'mipShellEvents',
+          data: {
             type: 'slide',
             data: {
               direction: 'up'
             }
-          })
-        }
-      } else if (lastScrollTop > scrollTop && scrollDistance >= THRESHOLD) {
-        if (lastScrollDirection !== 'down') {
-          lastScrollDirection = 'down'
-          let target = this.isRootPage ? window : window.parent
-          customEmit(target, 'mipShellEvents', {
+          }
+        })
+      }/* istanbul ignore next */ else if (lastScrollTop > scrollTop && scrollDistance >= THRESHOLD) {
+        let target = this.isRootPage ? window : window.parent
+        this.emitCustomEvent(target, this.isCrossOrigin, {
+          name: 'mipShellEvents',
+          data: {
             type: 'slide',
             data: {
               direction: 'down'
             }
-          })
-        }
+          }
+        })
       }
 
       lastScrollTop = scrollTop
@@ -279,10 +147,11 @@ class Page {
    * @param {Object} data eventdata
    */
   notifyRootPage (data) {
+    /* istanbul ignore else */
     if (this.isRootPage) {
       window.postMessage(data, window.location.origin)
     } else {
-      window.parent.postMessage(data, window.location.origin)
+      window.parent.postMessage(data, this.isCrossOrigin ? '*' : window.location.origin)
     }
   }
 
@@ -291,55 +160,39 @@ class Page {
    *
    */
   destroy () {
+    /* istanbul ignore next */
     viewport.scroller.removeEventListener('scroll', this.debouncer, false)
   }
 
   start () {
-    // Don't let browser restore scroll position.
-    if ('scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual'
-    }
-
-    // Set global mark
-    window.MIP.MIP_ROOT_PAGE = window.MIP_ROOT_PAGE
-
     ensureMIPShell()
-    this.initRouter()
-    this.initAppShell()
-
-    // Listen message from inner iframes
-    window.addEventListener('message', (e) => {
-      try {
-        if (e.source.location.origin === window.location.origin) {
-          this.messageHandlers.forEach(handler => {
-            handler.call(this, e.data.type, e.data.data || {})
-          })
-        }
-      } catch (e) {
-        // Message sent from SF will cause cross domain error when reading e.source.location
-        // Just ignore these messages.
-      }
-    }, false)
-
-    // Job complete!
-    document.body.setAttribute('mip-ready', '')
+    this.initPageId()
 
     // scroll to current hash if exists
     this.scrollToHash(window.location.hash)
-    window.addEventListener(SCROLL_TO_ANCHOR_CUSTOM_EVENT, (e) => {
+    window.addEventListener(CUSTOM_EVENT_SCROLL_TO_ANCHOR, (e) => {
       this.scrollToHash(e.detail[0])
     })
+
+    // trigger show page custom event
+    this.emitEventInCurrentPage({name: CUSTOM_EVENT_SHOW_PAGE})
+
+    // Job complete!
+    document.body.setAttribute('mip-ready', '')
   }
 
   // ========================= Util functions for developers =========================
   togglePageMask (toggle, options) {
     // Only show page mask in root page
     if (!this.isRootPage) {
-      customEmit(window.parent, 'mipShellEvents', {
-        type: 'togglePageMask',
+      this.emitCustomEvent(window.parent, true, {
+        name: 'mipShellEvents',
         data: {
-          toggle,
-          options
+          type: 'togglePageMask',
+          data: {
+            toggle,
+            options
+          }
         }
       })
     }
@@ -354,6 +207,66 @@ class Page {
       }
     })
   }
+  /* istanbul ignore next */
+  toggleFadeHeader (toggle, pageMeta) {
+    toggleFadeHeader(toggle, pageMeta)
+  }
+
+  /**
+   * Emit a custom event in current page
+   *
+   * @param {Object} event event
+   */
+  emitCustomEvent (targetWindow, isCrossOrigin, event) {
+    if (isCrossOrigin) {
+      targetWindow.postMessage({
+        type: MESSAGE_CROSS_ORIGIN,
+        data: event
+      }, '*')
+    } else {
+      customEmit(targetWindow, event.name, event.data)
+    }
+  }
+
+  broadcastCustomEvent (event) {
+    if (this.isRootPage) {
+      customEmit(window, event.name, event.data)
+
+      this.children.forEach(pageMeta => {
+        pageMeta.targetWindow.postMessage({
+          type: MESSAGE_CROSS_ORIGIN,
+          data: event
+        }, '*')
+      })
+    } else {
+      window.parent.postMessage({
+        type: MESSAGE_BROADCAST_EVENT,
+        data: event
+      }, '*')
+    }
+  }
+
+  back () {
+    this.notifyRootPage({type: MESSAGE_ROUTER_BACK})
+  }
+
+  forward () {
+    this.notifyRootPage({type: MESSAGE_ROUTER_FORWARD})
+  }
+
+  push (route, options = {}) {
+    this.notifyRootPage({
+      type: MESSAGE_ROUTER_PUSH,
+      data: {route, options}
+    })
+  }
+
+  replace (route, options = {}) {
+    this.notifyRootPage({
+      type: MESSAGE_ROUTER_REPLACE,
+      data: {route, options}
+    })
+  }
 
   // =============================== Root Page methods ===============================
 
@@ -361,156 +274,10 @@ class Page {
    * emit a custom event in current page
    *
    * @param {Object} event event
-   * @param {string} event.name event name
-   * @param {Object} event.data event data
    */
-  emitEventInCurrentPage ({name, data = {}}) {
-    if (this.currentPageId !== this.pageId) {
-      // notify current iframe
-      let $iframe = getIFrame(this.currentPageId)
-      $iframe && $iframe.contentWindow.postMessage({
-        type: MESSAGE_APPSHELL_EVENT,
-        data: {name, data}
-      }, window.location.origin)
-    } else {
-      // emit CustomEvent in root page
-      customEmit(window, name, data)
-    }
-  }
-
-  /**
-   * find route.meta by pageId
-   * @param {string} pageId pageId
-   * @return {Object} meta object
-   */
-  findMetaByPageId (pageId) {
-    if (this.appshellCache[pageId]) {
-      return this.appshellCache[pageId]
-    } else {
-      let route
-      for (let i = 0; i < this.appshellRoutes.length; i++) {
-        route = this.appshellRoutes[i]
-        if (route.regexp.test(pageId)) {
-          this.appshellCache[pageId] = route.meta
-          return route.meta
-        }
-      }
-    }
-
-    return Object.assign({}, DEFAULT_SHELL_CONFIG)
-  }
-
-  /**
-   * refresh appshell with data from <mip-shell>
-   *
-   * @param {string} targetPageId targetPageId
-   * @param {Object} extraData extraData
-   */
-  // refreshAppShell (targetPageId, extraData) {
-  //   this.appshell.refresh(extraData, targetPageId)
-  // }
-
-  /**
-   * save scroll position in root page
-   */
-  saveScrollPosition () {
-    this.rootPageScrollPosition = viewport.getScrollTop()
-  }
-
-  /**
-   * restore scroll position in root page
-   */
-  restoreScrollPosition () {
-    viewport.scroller.scrollTo(0, this.rootPageScrollPosition)
-  }
-
-  /**
-   * apply transition effect to relative two pages
-   *
-   * @param {string} targetPageId targetPageId
-   * @param {Object} targetMeta metainfo of targetPage
-   * @param {Object} options
-   * @param {Object} options.newPage if just created a new page
-   * @param {Function} options.onComplete if just created a new page
-   */
-  applyTransition (targetPageId, targetMeta, options = {}) {
-    let localMeta = this.findMetaByPageId(targetPageId)
-    /**
-     * priority of header.title:
-     * 1. <a mip-link data-title>
-     * 2. <mip-shell> route.meta.header.title
-     * 3. <a mip-link></a> innerText
-     */
-    let innerTitle = {title: targetMeta.defaultTitle || undefined}
-    let finalMeta = util.fn.extend(true, innerTitle, localMeta, targetMeta)
-
-    customEmit(window, 'mipShellEvents', {
-      type: 'toggleTransition',
-      data: {
-        toggle: false
-      }
-    })
-
-    if (targetPageId === this.pageId || this.direction === 'back') {
-      // backward
-      let backwardOpitons = {
-        transition: this.allowTransition,
-        sourceMeta: this.currentPageMeta,
-        transitionContainsHeader: this.transitionContainsHeader,
-        onComplete: () => {
-          this.allowTransition = false
-          this.currentPageMeta = finalMeta
-          customEmit(window, 'mipShellEvents', {
-            type: 'toggleTransition',
-            data: {
-              toggle: true
-            }
-          })
-          options.onComplete && options.onComplete()
-        }
-      }
-
-      if (this.direction === 'back') {
-        backwardOpitons.targetPageId = targetPageId
-        backwardOpitons.targetPageMeta = this.findMetaByPageId(targetPageId)
-      } else {
-        backwardOpitons.targetPageMeta = this.currentPageMeta
-      }
-
-      this.getElementsInRootPage().forEach(e => e.classList.remove('hide'))
-      frameMoveOut(this.currentPageId, backwardOpitons)
-
-      this.direction = null
-      // restore scroll position in root page
-      if (targetPageId === this.pageId) {
-        this.restoreScrollPosition()
-      }
-    } else {
-      // forward
-      frameMoveIn(targetPageId, {
-        transition: this.allowTransition,
-        targetMeta: finalMeta,
-        newPage: options.newPage,
-        transitionContainsHeader: this.transitionContainsHeader,
-        onComplete: () => {
-          this.allowTransition = false
-          this.currentPageMeta = finalMeta
-          // TODO: Prevent transition on first view in some cases
-          customEmit(window, 'mipShellEvents', {
-            type: 'toggleTransition',
-            data: {
-              toggle: true
-            }
-          })
-          /**
-           * Disable scrolling of root page when covered by an iframe
-           * NOTE: it doesn't work in iOS, see `_lockBodyScroll()` in viewer.js
-           */
-          this.getElementsInRootPage().forEach(e => e.classList.add('hide'))
-          options.onComplete && options.onComplete()
-        }
-      })
-    }
+  emitEventInCurrentPage (event) {
+    let currentPage = this.getPageById(this.currentPageId)
+    this.emitCustomEvent(currentPage.targetWindow, currentPage.isCrossOrigin, event)
   }
 
   /**
@@ -519,8 +286,37 @@ class Page {
    * @param {Page} page page
    */
   addChild (page) {
-    if (this.isRootPage) {
-      this.children.push(page)
+    for (let i = 0; i < this.children.length; i++) {
+      if (this.children[i].pageId === page.pageId) {
+        this.children.splice(i, 1)
+        break
+      }
+    }
+    this.children.push(page)
+  }
+
+  /**
+   * check if children.length exceeds MAX_PAGE_NUM
+   * if so, remove the first child
+   */
+  /* istanbul ignore next */
+  checkIfExceedsMaxPageNum (targetPageId) {
+    if (this.children.length >= MAX_PAGE_NUM) {
+      let currentPage
+      for (let i = 0; i < this.children.length; i++) {
+        currentPage = this.children[i]
+        // find first removable page, which can't be target page or current page
+        if (currentPage.pageId !== targetPageId &&
+          currentPage.pageId !== this.currentPageId) {
+          const firstRemovableIframe = getIFrame(currentPage.pageId)
+          if (firstRemovableIframe && firstRemovableIframe.parentNode) {
+            firstRemovableIframe.parentNode.removeChild(firstRemovableIframe)
+          }
+          // remove from children list
+          this.children.splice(i, 1)
+          return
+        }
+      }
     }
   }
 
@@ -531,8 +327,17 @@ class Page {
    * @return {Page} page
    */
   getPageById (pageId) {
-    return (!pageId || pageId === this.pageId)
-      ? this : this.children.find(child => child.pageId === pageId)
+    if (!pageId || pageId === this.pageId) {
+      return this
+    }
+
+    for (let i = 0; i < this.children.length; i++) {
+      if (this.children[i].pageId === pageId) {
+        return this.children[i]
+      }
+    }
+
+    return null
   }
 
   /**
@@ -547,6 +352,7 @@ class Page {
       '.mip-page-fade-header-wrapper',
       'mip-shell',
       '[mip-shell]',
+      '[mip-shell-inner]',
       '.mip-shell-header-wrapper',
       '.mip-shell-more-button-mask',
       '.mip-shell-more-button-wrapper',
@@ -554,89 +360,7 @@ class Page {
       '[mip-global-component]'
     ]
     let notInWhitelistSelector = whitelist.map(selector => `:not(${selector})`).join('')
-    return document.body.querySelectorAll(`body > ${notInWhitelistSelector}`)
-  }
-
-  /**
-   * render with current route
-   *
-   * @param {Route} from route
-   * @param {Route} to route
-   */
-  render (from, to) {
-    /**
-     * if `to` route is the same with `from` route in path & query,
-     * scroll in current page
-     */
-    if (isSameRoute(from, to, true)) {
-      this.emitEventInCurrentPage({
-        name: SCROLL_TO_ANCHOR_CUSTOM_EVENT,
-        data: to.hash
-      })
-      return
-    }
-
-    // otherwise, render target page
-    let targetFullPath = getFullPath(to)
-    let targetPageId = this.cleanPageId(targetFullPath)
-    let targetPage = this.getPageById(targetPageId)
-
-    if (this.currentPageId === this.pageId) {
-      this.saveScrollPosition()
-    }
-
-    // Hide page mask and skip transition
-    customEmit(window, 'mipShellEvents', {
-      type: 'togglePageMask',
-      data: {
-        toggle: false,
-        options: {
-          skipTransition: true
-        }
-      }
-    })
-
-    // Show header
-    customEmit(window, 'mipShellEvents', {
-      type: 'slide',
-      data: {
-        direction: 'down'
-      }
-    })
-
-    /**
-     * reload iframe when <a mip-link> clicked even if it's already existed.
-     * NOTE: forwarding or going back with browser history won't do
-     */
-    if (!targetPage || (to.meta && to.meta.reload)) {
-      // when reloading root page...
-      if (this.pageId === targetPageId) {
-        this.pageId = NON_EXISTS_PAGE_ID
-        // destroy root page first
-        if (targetPage) {
-          targetPage.destroy()
-        }
-        // TODO: delete DOM & trigger disconnectedCallback in root page
-        this.getElementsInRootPage().forEach(el => el.parentNode && el.parentNode.removeChild(el))
-      }
-      // Create a new iframe
-      createIFrame(targetFullPath, targetPageId)
-      this.applyTransition(targetPageId, to.meta, {newPage: true})
-    } else {
-      this.applyTransition(targetPageId, to.meta, {
-        onComplete: () => {
-          // Update shell if new iframe has not been created
-          let pageMeta = this.findMetaByPageId(targetPageId)
-          customEmit(window, 'mipShellEvents', {
-            type: 'updateShell',
-            data: {pageMeta}
-          })
-        }
-      })
-      window.MIP.$recompile()
-    }
-
-    this.currentPageId = targetPageId
+    return document.querySelectorAll(`body > ${notInWhitelistSelector}`)
   }
 }
 

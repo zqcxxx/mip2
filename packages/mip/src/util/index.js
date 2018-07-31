@@ -17,17 +17,20 @@ import platform from './platform'
 import naboo from './naboo'
 import EventEmitter from './event-emitter'
 import Gesture from './gesture/index'
-import customStorage from './customStorage'
+import customStorage from './custom-storage'
+import jsonParse from './json-parse'
 
 /**
  * Exchange a url to cache url.
  *
  * @param {string} url Source url.
  * @param {string} type The url type.
+ * @param {boolean} containsHost The url type.
  * @return {string} Cache url.
  */
-function makeCacheUrl (url, type) {
-  if (!fn.isCacheUrl(location.href) ||
+export function makeCacheUrl (url, type, containsHost) {
+  if (fn.isCacheUrl(url) ||
+    !fn.isCacheUrl(location.href) ||
     (url && url.length < 8) ||
     !(url.indexOf('http') === 0 || url.indexOf('//') === 0)
   ) {
@@ -39,8 +42,15 @@ function makeCacheUrl (url, type) {
   }
   let urlParas = url.split('//')
   urlParas.shift()
+  let host = urlParas[0].substring(0, urlParas[0].indexOf('/'))
   url = urlParas.join('//')
-  return prefix + url
+
+  let result = prefix + url
+  if (containsHost) {
+    result = location.protocol + '//' + host.replace(/-/g, '--').replace(/\./g, '-') + '.mipcdn.com' + result
+  }
+
+  return result
 }
 
 /**
@@ -56,7 +66,7 @@ function makeCacheUrl (url, type) {
  * @param {string} url Source url.
  * @return {string} origin url.
  */
-function parseCacheUrl (url) {
+export function parseCacheUrl (url) {
   if (!url) {
     return url
   }
@@ -65,7 +75,7 @@ function parseCacheUrl (url) {
   ) {
     return url
   }
-  let reg = new RegExp('^(http[s]:)?(//([^/]+))?/[ic](/s)?/(.*)$', 'g')
+  let reg = new RegExp('^(http(?:s?):)?(//([^/]+))?/[ic](/s)?/(.*)$', 'g')
   let result = reg.exec(url)
   if (!result) {
     return url
@@ -83,11 +93,16 @@ function parseCacheUrl (url) {
  * 获取页面原 mip url，可以将页面 mip-cache url 处理为原页面
  * 由于 cache-url 可能会被改写，需要还原
  *
+ * @param {string=} url 传入的 URL
  * @return {string} 原 mip 页 URL
  */
-function getOriginalUrl () {
-  let parsedUrl = parseCacheUrl(window.location.href)
-  if (parsedUrl === window.location.href) {
+export function getOriginalUrl (url) {
+  /* istanbul ignore if */
+  if (!url) {
+    url = window.location.href
+  }
+  let parsedUrl = parseCacheUrl(url)
+  if (parsedUrl === url) {
     // 直接打开 MIP 页
     return parsedUrl
   }
@@ -95,6 +110,17 @@ function getOriginalUrl () {
   let urlWithoutHash = parsedUrl.split('#')[0]
   let originHash = hash.get('mipanchor')
   return urlWithoutHash + (originHash.length ? '#' : '') + originHash
+}
+
+/**
+ * Whether pageUrl is mip cache url.
+ *
+ * @param {string} pageUrl - current page url.
+ * @return {boolean} isCacheUrl.
+ */
+export function isCacheUrl (pageUrl) {
+  return /mipcache.bdstatic.com/.test(pageUrl) ||
+    /^(\/\/|http:\/\/|https:\/\/)([A-Za-z0-9]{1,}-?){1,}.mipcdn.com\/(stati)?c\//.test(pageUrl)
 }
 
 export default {
@@ -108,8 +134,10 @@ export default {
   parseCacheUrl,
   makeCacheUrl,
   getOriginalUrl,
+  isCacheUrl,
   EventEmitter,
   Gesture,
   customStorage,
-  naboo
+  naboo,
+  jsonParse
 }

@@ -6,8 +6,7 @@
 import cssLoader from '../util/dom/css-loader'
 import layout from '../layout'
 import performance from '../performance'
-// import resources from '../resources'
-import viewport from '../viewport'
+import resources from '../resources'
 import customElementsStore from '../custom-element-store'
 
 /* globals HTMLElement */
@@ -37,7 +36,7 @@ function createBaseElementProto () {
    */
   proto.createdCallback = function () {
     // get mip1 clazz from custom elements store
-    let CustomElement = customElementsStore.get(this.tagName.toLowerCase(), 'mip1')
+    let CustomElement = customElementsStore.get(this.tagName, 'mip1')
 
     this.classList.add('mip-element')
 
@@ -60,7 +59,7 @@ function createBaseElementProto () {
      * @private
      * @type {Object}
      */
-    this._resources = viewport.resources
+    this._resources = resources
 
     /**
      * Instantiated the custom element.
@@ -82,7 +81,7 @@ function createBaseElementProto () {
    */
   proto.attachedCallback = function () {
     if (this.tagName === 'MIP-DATA') {
-      console.log('attachedCallback')
+      // console.log('attachedCallback')
     }
 
     // Apply layout for this.

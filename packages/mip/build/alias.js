@@ -1,8 +1,14 @@
+/**
+ * @file rollup alias config
+ * @author mj(zoumiaojiang@gmail.com)
+ */
+
 const path = require('path')
 
 const resolve = p => path.resolve(__dirname, '../', p)
 
 module.exports = {
+  src: resolve('src'),
   mip: resolve('src/index.js'),
   vue: resolve('src/vue/platforms/web/entry-runtime'),
   compiler: resolve('src/vue/compiler'),

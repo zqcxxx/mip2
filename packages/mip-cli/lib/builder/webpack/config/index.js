@@ -13,13 +13,15 @@ const {resolveModule} = require('../../../utils/helper');
 const {babelLoader, babelExternals} = require('./babel')
 const path = require('path')
 const componentExternals = require('./component-externals')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const webpack = require('webpack')
 
 module.exports = function (options) {
-  return {
+  let config = {
     entry: options.entry,
     output: {
       path: options.outputPath,
-      filename: '[name]/[name].js',
+      filename: '[name].js',
       chunkFilename: '[name].[hash].js',
       publicPath: options.asset.replace(/\/$/, '') + '/'
     },
@@ -42,7 +44,7 @@ module.exports = function (options) {
         {
           test: /\.js$/,
           exclude: /node_modules/,
-          use: options.ignore
+          use: options.ignore && /(^|,)sandbox(,|$)/.test(options.ignore)
             ? [
               babelLoader,
               path.resolve(__dirname, 'child-component-loader.js')
@@ -89,7 +91,24 @@ module.exports = function (options) {
     },
     plugins: [
       new VueLoaderPlugin(),
-      new CustomElementPlugin()
+      new CustomElementPlugin(options),
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify(options.mode)
+      })
     ]
   }
+
+  if (options.mode === 'development') {
+    config.plugins.push(
+      new CopyWebpackPlugin([
+        {
+          from: resolveModule('mip-components-webpack-helpers/dist/mip-components-webpack-helpers.js'),
+          to: 'mip-components-webpack-helpers.js',
+          toType: 'file'
+        }
+      ], {debug: 'error'})
+    )
+  }
+
+  return config
 }

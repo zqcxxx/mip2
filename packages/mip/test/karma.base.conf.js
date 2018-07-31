@@ -3,6 +3,7 @@ const alias = require('../build/alias')
 const version = process.env.VERSION || require('../package.json').version
 
 const webpackConfig = {
+  mode: 'development',
   resolve: {
     alias
   },
@@ -24,8 +25,7 @@ const webpackConfig = {
         },
         'less-loader'
       ]
-    },
-    {
+    }, {
       test: /\.(woff2?|eot|ttf|otf)(\?.*)?$/,
       loader: 'url-loader',
       options: {
@@ -43,12 +43,18 @@ const webpackConfig = {
   devtool: '#inline-source-map'
 }
 
+let browsers = ['Chrome']
+// trvis env
+if (process.env.TRAVIS) {
+  browsers = ['Chrome_travis_ci']
+}
+
 module.exports = {
   files: [
     'index.js'
   ],
 
-  frameworks: ['mocha', 'chai'],
+  frameworks: ['mocha', 'chai-sinon', 'chai'],
 
   preprocessors: {
     'index.js': ['webpack']
@@ -63,8 +69,17 @@ module.exports = {
     'karma-mocha',
     'karma-chai',
     'karma-mocha-reporter',
-    'karma-sourcemap-loader'
+    'karma-sourcemap-loader',
+    'karma-chai-sinon'
+    // 'karma-chai-as-promised'
   ],
-  browsers: ['Chrome'],
+  browsers: browsers,
+  // custom launchers
+  customLaunchers: {
+    Chrome_travis_ci: {
+      base: 'Chrome',
+      flags: ['--no-sandbox']
+    }
+  },
   concurrency: Infinity
 }

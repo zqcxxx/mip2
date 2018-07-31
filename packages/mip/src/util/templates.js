@@ -49,8 +49,7 @@ class Templates {
   }
 
   render (element, data, obj) {
-    let self = this
-    let template = self.find(element)
+    let template = this.find(element)
 
     if (!template) {
       return
@@ -59,13 +58,13 @@ class Templates {
     let type = template.getAttribute('type')
     let templateHTML = template.innerHTML
 
-    return self._getTemplate(type).then(impl => {
+    return this._getTemplate(type).then(impl => {
       if (!template[CACHED_ATTR]) {
         template[CACHED_ATTR] = true
         impl.cache(templateHTML)
       }
 
-      data = self.extendFun(data)
+      data = this.extendFun(data)
 
       // array
       if (Array.isArray(data)) {
@@ -108,18 +107,15 @@ class Templates {
         .replace(/&gt;/ig, '>')
         .replace(/&#x2F;/ig, '/')
 
-      data.isSF = () => this.urltype === 'sf'
+      data.isSF = function () {
+        return this.urltype === 'sf'
+      }
     } catch (e) {}
     return data
   }
 
   inheritTemplate () {
-    function inheritor () {
-      Template.apply(this, arguments)
-    }
-    inheritor.prototype = Object.create(Template.prototype)
-    inheritor.constructor = inheritor
-    return inheritor
+    return class Inheritor extends Template {}
   }
 }
 

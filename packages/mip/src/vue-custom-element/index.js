@@ -54,11 +54,11 @@ function install (Vue) {
       }
 
       connectedCallback () {
-        callLifeCycle(this.vm, 'connectedCallback', this.element)
+        callLifeCycle(this, 'connectedCallback', this.element)
       }
 
       disconnectedCallback () {
-        callLifeCycle(this.vm, 'disconnectedCallback', this.element)
+        callLifeCycle(this, 'disconnectedCallback', this.element)
       }
 
       firstInviewCallback () {
@@ -73,7 +73,7 @@ function install (Vue) {
         if (this.vueInstance) {
           const nameCamelCase = camelize(name)
           const type = this.props.types[nameCamelCase]
-          this.vueInstance[nameCamelCase] = convertAttributeValue(value, type, {name}, this.element)
+          this.vueInstance[nameCamelCase] = convertAttributeValue(value, type)
         }
       }
 
