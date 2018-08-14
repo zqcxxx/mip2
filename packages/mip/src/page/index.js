@@ -60,18 +60,20 @@ class Page {
    * @param {string} hash hash
    */
   scrollToHash (hash) {
-    if (hash) {
-      try {
-        let $hash = document.querySelector(decodeURIComponent(hash))
-        /* istanbul ignore next */
-        if ($hash) {
-          // scroll to current hash
-          scrollTo($hash.offsetTop, {
-            scrollTop: viewport.getScrollTop()
-          })
-        }
-      } catch (e) {}
+    if (typeof hash !== 'string' || hash[0] !== '#') {
+      return
     }
+
+    try {
+      const anchor = document.getElementById(decodeURIComponent(hash.slice(1)))
+
+      /* istanbul ignore next */
+      if (anchor) {
+        scrollTo(anchor.offsetTop, {
+          scrollTop: viewport.getScrollTop()
+        })
+      }
+    } catch (e) {}
   }
 
   /**
@@ -176,9 +178,6 @@ class Page {
 
     // trigger show page custom event
     this.emitEventInCurrentPage({name: CUSTOM_EVENT_SHOW_PAGE})
-
-    // Job complete!
-    document.body.setAttribute('mip-ready', '')
   }
 
   // ========================= Util functions for developers =========================
@@ -215,7 +214,11 @@ class Page {
   /**
    * Emit a custom event in current page
    *
-   * @param {Object} event event
+   * @param {Window} targetWindow Window of target page. Can be `window` or `window.top`
+   * @param {boolean} isCrossOrigin Whether targetWindow is cross origin compared with current one
+   * @param {Object} event Event needs to be sent
+   * @param {string} event.name Event name
+   * @param {Object} event.data Event data
    */
   emitCustomEvent (targetWindow, isCrossOrigin, event) {
     if (isCrossOrigin) {
@@ -228,6 +231,13 @@ class Page {
     }
   }
 
+  /**
+   * Broadcast custom event to all pages.
+   *
+   * @param {Object} event Event needs to be sent
+   * @param {string} event.name Event name
+   * @param {Object} event.data Event data
+   */
   broadcastCustomEvent (event) {
     if (this.isRootPage) {
       customEmit(window, event.name, event.data)
@@ -360,7 +370,7 @@ class Page {
       '[mip-global-component]'
     ]
     let notInWhitelistSelector = whitelist.map(selector => `:not(${selector})`).join('')
-    return document.querySelectorAll(`body > ${notInWhitelistSelector}`)
+    return [...document.querySelectorAll(`body > ${notInWhitelistSelector}`)]
   }
 }
 

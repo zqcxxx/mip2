@@ -6,6 +6,8 @@
 /* eslint-disable no-unused-expressions */
 /* globals describe, before, it, expect, MIP, after, sinon */
 
+import MipData from 'src/components/mip-bind/mip-data'
+
 describe('mip-bind', function () {
   let eleText
   let eleBind
@@ -17,6 +19,8 @@ describe('mip-bind', function () {
     document.body.removeChild(eleBind)
     document.body.removeChild(eleObject)
     document.body.removeChild(iframe)
+    // window.g = null
+    // window.m = null
   })
 
   describe('init data', function () {
@@ -24,9 +28,9 @@ describe('mip-bind', function () {
 
     before(function () {
       // some normal bindings
-      eleText = (createEle('p', ['loc.city'], 'text'))
-      eleBind = (createEle('p', ['data-active', 'global.isGlobal'], 'bind'))
-      eleObject = (createEle('p', ['data', 'global.data'], 'bind'))
+      eleText = createEle('p', ['loc.city'], 'text')
+      eleBind = createEle('p', ['data-active', 'global.isGlobal'], 'bind')
+      eleObject = createEle('p', ['data', 'global.data'], 'bind')
 
       iframe = createEle('iframe', null)
 
@@ -54,7 +58,7 @@ describe('mip-bind', function () {
                   "province": "广东",
                   "city": "广州"
                 },
-                "list": ['a', 'b', {"item": 2}]
+                "list": ["a", "b", {"item": 2}]
               }
             </script>
           </mip-data>
@@ -103,22 +107,25 @@ describe('mip-bind', function () {
     })
   })
 
-  describe.skip('json format', function () {
+  describe('json format', function () {
+    let mipData
     before(function () {
-      let mipData = document.createElement('mip-data')
-      mipData.innerHTML = `
-        <script type="application/json">
-          {
-            "wrongFormatData": function () {}
-          }
-        </script>
+      mipData = new MipData()
+      let mipDataTag = document.createElement('mip-data')
+      let script = document.createElement('script')
+      script.setAttribute('type', 'application/json')
+      script.textContent = `
+        {
+          "wrongFormatData": function () {}
+        }
       `
-      document.body.appendChild(mipData)
+      mipDataTag.appendChild(script)
+      mipData.element = mipDataTag
     })
 
     it('should not combine wrong formatted data with m', function () {
+      expect(mipData.build.bind(mipData)).to.throw(/Content should be a valid JSON string!/)
       expect(window.m.wrongFormatData).to.be.undefined
-      // expect(err.message).include('Content should be a valid JSON string!')
     })
   })
 
@@ -187,6 +194,7 @@ describe('mip-bind', function () {
     it('should change page data correctly', function () {
       MIP.setData({
         loc: {
+          province: '广东',
           city: '深圳',
           year: 2018
         },
@@ -205,19 +213,27 @@ describe('mip-bind', function () {
     it('should shift data to a different type and still trace', function () {
       MIP.setData({
         global: {
-          data: 7,
           isGlobal: {
             bool: true
+          }
+        }
+      })
+      MIP.setData({
+        global: {
+          isGlobal: {
+            bool: false
           }
         }
       })
 
       MIP.setData({
         global: {
-          data: 8,
-          isGlobal: {
-            bool: false
-          }
+          data: 7
+        }
+      })
+      MIP.setData({
+        global: {
+          data: 8
         }
       })
 
@@ -250,6 +266,63 @@ describe('mip-bind', function () {
     })
   })
 
+  describe('watch', function () {
+    it('should run watchers after all data was set', function () {
+      let loadingChanged = false
+      MIP.$set({
+        'data_key': 0,
+        'w-loading': false
+      })
+      MIP.watch('data_key', function () {
+        MIP.setData({
+          'w-loading': false
+        })
+      })
+      MIP.watch('w-loading', function () {
+        loadingChanged = true
+      })
+
+      MIP.setData({
+        'data_key': 1,
+        'w-loading': true
+      })
+      expect(loadingChanged).to.be.false
+    })
+
+    it('should run watcher after all data was set according to order', function () {
+      let res = ''
+      MIP.$set({
+        'data_key2': 0,
+        'w-loading2': 'false'
+      })
+      MIP.watch('w-loading2', function (val) {
+        res += val
+      })
+      MIP.watch('data_key2', function () {
+        MIP.setData({
+          'w-loading2': false
+        })
+      })
+
+      MIP.setData({
+        'data_key2': 1,
+        'w-loading2': true
+      })
+      expect(res).to.equal('truefalse')
+    })
+
+    it('should avoid infinit update with custom watcher', function () {
+      MIP.$set({
+        'infinite_a': 0
+      })
+      MIP.watch('infinite_a', function (newVal) {
+        MIP.setData({'infinite_a': +newVal + 1})
+      })
+      MIP.setData({'infinite_a': 1})
+      // [MIP warn]:You may have an infinite update loop
+    })
+  })
+
   describe('class-style-binding', function () {
     let eles = []
 
@@ -260,6 +333,7 @@ describe('mip-bind', function () {
       eles.push(createEle('p', ['class', '[{ loading: loading }, errorClass]'], 'bind'))
       eles.push(createEle('p', ['class', 'classText'], 'bind'))
       eles.push(createEle('p', ['class', `[loading ? loadingClass : '', errorClass]`], 'bind'))
+      eles.push(createEle('p', ['class', `{hide: tab!=='nav'}`], 'bind'))
       // some normal style bindings
       eles.push(createEle('p', ['style', 'styleObject'], 'bind'))
       eles.push(createEle('p', ['style', `{ display: ['-webkit-box', '-ms-flexbox', 'flex'] }`], 'bind'))
@@ -288,6 +362,10 @@ describe('mip-bind', function () {
         },
         fontSize: 12.5
       })
+
+      MIP.$set({
+        tab: 'nav'
+      })
     })
 
     it('should set class', function () {
@@ -295,15 +373,21 @@ describe('mip-bind', function () {
       expect(eles[1].getAttribute('class')).to.equal('m-error')
       expect(eles[2].getAttribute('class')).to.equal('class-text')
       expect(eles[3].getAttribute('class')).to.equal('m-error')
+      expect(eles[4].getAttribute('class')).to.be.empty
+
+      MIP.setData({
+        tab: 'test'
+      })
+      expect(eles[4].getAttribute('class')).to.equal('hide')
     })
 
     it('should set style', function () {
-      expect(eles[4].getAttribute('style')).to.equal('font-size:12px;-webkit-margin-before:1em;')
-      expect(eles[5].getAttribute('style')).to.equal('display:flex;')
-      expect(eles[6].getAttribute('style')).to.equal('font-size:13px;')
-      expect(eles[7].getAttribute('style')).to.equal('font-size:12.5px;')
-      expect(eles[8].getAttribute('style')).to.equal('color:red;font-size:12px;-webkit-margin-before:1em;')
-      expect(eles[9].getAttribute('style')).to.equal('border:2px;')
+      expect(eles[5].getAttribute('style')).to.equal('font-size:12px;-webkit-margin-before:1em;')
+      expect(eles[6].getAttribute('style')).to.equal('display:flex;')
+      expect(eles[7].getAttribute('style')).to.equal('font-size:13px;')
+      expect(eles[8].getAttribute('style')).to.equal('font-size:12.5px;')
+      expect(eles[9].getAttribute('style')).to.equal('color:red;font-size:12px;-webkit-margin-before:1em;')
+      expect(eles[10].getAttribute('style')).to.equal('border:2px;')
     })
 
     it('should update class', function () {
@@ -331,10 +415,10 @@ describe('mip-bind', function () {
         fontSize: 12.4
       })
 
-      expect(eles[4].getAttribute('style')).to.equal('font-size:16px;-webkit-margin-before:1em;width:50%;')
-      expect(eles[6].getAttribute('style')).to.equal('font-size:11.4px;')
-      expect(eles[7].getAttribute('style')).to.equal('font-size:12.4px;')
-      expect(eles[8].getAttribute('style')).to.equal('color:red;font-size:16px;-webkit-margin-before:1em;width:50%;')
+      expect(eles[5].getAttribute('style')).to.equal('font-size:16px;-webkit-margin-before:1em;width:50%;')
+      expect(eles[7].getAttribute('style')).to.equal('font-size:11.4px;')
+      expect(eles[8].getAttribute('style')).to.equal('font-size:12.4px;')
+      expect(eles[9].getAttribute('style')).to.equal('color:red;font-size:16px;-webkit-margin-before:1em;width:50%;')
     })
 
     after(function () {

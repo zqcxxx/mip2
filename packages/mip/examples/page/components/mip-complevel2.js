@@ -4,11 +4,10 @@
  */
 
 /* global MIP */
-
 MIP.registerVueCustomElement('mip-complevel2', {
   template: `<div class="mip-complevel2">
       <h3>This is component mip-complevel2</h3>
-      <p>userInfo.name : {{userInfo.name}}</p>
+      <p v-if="userInfo.name">userInfo.name : {{userInfo.name}}</p>
       <p v-if="msg">string 'msg' show if loading=true: <span v-if="loading">{{msg}}</span></p>
       <p v-if="list && list.length">list:</p>
       <ul v-if="list && list.length">
@@ -35,5 +34,23 @@ MIP.registerVueCustomElement('mip-complevel2', {
       type: Array
     },
     num: Number
+  },
+  mounted () {
+    MIP.watch('loading', function (newVal) {
+      console.log('watch loading ', newVal)
+    })
+    MIP.watch('a', function (newVal) {
+      MIP.setData({
+        loading: false
+        // a: +newVal + 1
+      })
+      console.log('watch a:', newVal, ',set {loading:', MIP.getData('loading'), '}')
+    })
+    // MIP.watch('loading', function (newVal) {
+    //   console.log('watch loading ', newVal)
+    // })
+    // MIP.watch('loading', function (newVal) {
+    //   console.log('watch loading ', newVal)
+    // }, {immediate: true})
   }
 })

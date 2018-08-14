@@ -1,4 +1,4 @@
-# 3. 熟悉项目结构
+# 3. 项目初始化页面
 
 通过前面两步，开发者可以初步预览到初始化项目的一个页面，如果要更好的开发，我们还需要对初始化的项目结构有一定的了解
 
@@ -11,11 +11,11 @@
 
   - 开发时，可以在页面中直接修改页面 html 内容
 
-    > 开发中需要遵循 MIP 的开发规范，[详细开发规范](../../guide/mip-standard/mip-html-spec.html)
+    > 开发中需要遵循 MIP 的开发规范，[详细开发规范](../../guide/mip-standard/mip-html-spec.md)
 
   - 通过自定义标签的方式引入内容（如 `<mip-example>` 标签）
 
-    > 开发自定义组件，详细请参照[如何开发自定义组件](./component-development/introduction.html) 
+    > 开发自定义组件，详细请参照[如何开发自定义组件](../component-development/introduction.md)
 
     > MIP 提供了部分内置组件及个性化组件，方便开发者使用
 

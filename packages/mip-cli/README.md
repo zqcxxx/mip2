@@ -92,21 +92,32 @@ $ mip sw
 
 ``` javascript
 module.exports = {
-    dev: {/*...*/},
-    serviceWorker: {
-        cacheId: 'mipuser',
-        skipWaiting: true,
-        clientsClaim: true,
-        runtimeCaching: [],
-        globPatterns: [],
-        globIgnores: []
-    }
+  dev: {/*...*/},
+  serviceWorker: {
+    cacheId: 'mipuser',
+    skipWaiting: true,
+    clientsClaim: true,
+    runtimeCaching: [],
+    globPatterns: [],
+    globIgnores: []
+  }
 }
 ```
 
 更多的配置选项可以参考 [Workbox 配置项](https://developers.google.com/web/tools/workbox/modules/workbox-build#generateswstring_mode)
 
 ## changelog
+
+- 1.2.2
+    1. cli 沙盒注入提示信息增加对应文件提示以及白名单申请引导
+    2. 修复 1.2.1 dev/build 模式下默认命令行参数失效的 bug
+    3. 修复 dev 模式下 -d 参数不能传相对路径的 bug
+    4. 升级 mip-sandbox，添加 `CustomEvent` 依赖
+    5. 增加 mip dev/build -i all 的参数简写
+
+- 1.2.1
+    1. cli dev 和 build 命令增加 proxy 配置，支持对组件代码中字符串部分做替换以模拟实现开发和测试时的请求转发功能；
+    2. mip build 增加 -e/--env 指定当前编译的环境变量 process.env.NODE_ENV
 
 - 1.2.0
     1. 升级 validator 依赖 mip-component-validator 至 1.1.0，该版本全流程改为异步实现
