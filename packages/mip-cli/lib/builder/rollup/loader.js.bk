@@ -1,0 +1,69 @@
+/**
+ * @file helper.js
+ * @author clark-t (clarktanglei@163.com)
+ */
+
+const {runLoaders} = require('loader-runner')
+const precinct = require('precinct')
+const {pify, match} = require('../../utils/helper')
+const path = require('path')
+const {ensureDirSync} = require('fs-extra')
+
+async function load (filename, config, options) {
+  let rule = matchRule(config.module.rules, filename)
+
+  return pify(runLoaders)({
+    resource: filename,
+    loaders: rule && rule.use,
+    context: createContext(options, config)
+  })
+
+  return result
+}
+
+function matchRule (rules, filename) {
+  for (let i = 0; i < rules.length; i++) {
+    let rule = rules[i]
+    let matched = match(rule.test, filename)
+    if (matched) {
+      if (rule.exclude && match(rule.exclude, filename)) {
+        continue
+      }
+
+      return rule
+    }
+
+    if (rule.include && match(rule.include, filename)) {
+      return rule
+    }
+  }
+}
+
+function createContext ({resolver, fs}, config) {
+  let ctx = {
+    resolve (context, request, callback) {
+      resolver.resolve({}, context, request, {}, callback)
+    },
+    emitFile (name, content, sourceMap) {
+      let asset = createSourceForAsset(name, content, sourceMap)
+      let pathname = path.resolve(config.output.path, name)
+      ensureDirSync(path.dirname(pathname), {fs})
+      fs.writeFileSync(pathname, asset)
+    },
+    rootContext: config.context,
+    fs: fs,
+    sourceMap: !!config.useSourceMap
+  }
+
+  return ctx
+}
+
+// TODO
+
+function createSourceForAsset (name, content, sourceMap) {
+  return content
+}
+
+module.exports = {
+  load
+}

@@ -6,6 +6,7 @@
 const path = require('path')
 const fs = require('fs-extra')
 const glob = require('glob')
+const minimatch = require('minimatch')
 
 function noop () {}
 
@@ -108,6 +109,22 @@ function removeExt (pathname) {
   return pathname.slice(0, -ext.length)
 }
 
+function match (rule, str) {
+  if (typeof rule === 'string') {
+    if (rule === str) {
+      return true
+    }
+
+    return minimatch(str, rule)
+  } else if (rule instanceof RegExp) {
+    return rule.test(str)
+  } else if (Array.isArray(rule)) {
+    return rule.some(r => match(rule, str))
+  }
+
+  throw Error('not illegal type of rule')
+}
+
 module.exports = {
   noop,
   resolvePath,
@@ -117,5 +134,6 @@ module.exports = {
   resolveModule,
   pathFormat,
   removeExt,
-  objectSubset
+  objectSubset,
+  match
 }

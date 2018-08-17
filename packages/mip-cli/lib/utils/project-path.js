@@ -50,6 +50,27 @@ function isComponentPath (rootDir, pathname) {
   ) === path.resolve(pathname)
 }
 
+function getComponentName (rootDir, pathname) {
+  let rootComponentsDir = componentsDir(dir)
+  if (path.resolve(pathname).slice(0, rootComponentsDir.length) !== rootComponentsDir) {
+    return
+  }
+
+  let tmp = pathname
+  let dir
+
+  do {
+    dir = tmp
+    tmp = path.resolve(tmp, '..')
+  } while (tmp !== rootComponentsDir)
+
+  return path.basename(dir)
+}
+
+function isInComponentDir (rootDir, pathname) {
+  return getComponentName(rootDir, pathname) != null
+}
+
 // function packageJson (rootDir) {
 //   return path.resolve(dir, 'package.json')
 // }
@@ -60,6 +81,8 @@ function isComponentPath (rootDir, pathname) {
 
 module.exports = {
   components: componentsDir,
+  getComponentName: getComponentName,
+  isInComponentDir: isInComponentDir,
   // componentPath: componentPath,
   componentTestDir: componentTestDir,
   // possibleComponents: possibleComponentPaths,

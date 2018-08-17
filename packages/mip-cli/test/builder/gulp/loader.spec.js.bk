@@ -1,0 +1,93 @@
+/**
+ * @file loader.spec.js
+ * @author clark-t (clarktanglei@163.com)
+ */
+
+const {load} = require('../../../lib/builder/gulp/loader')
+const MemoryFs = require('memory-fs')
+const {ResolverFactory} = require('enhanced-resolve')
+const path = require('path')
+const {resolveModule} = require('../../../lib/utils/helper')
+
+let mfs = new MemoryFs()
+let resolver = ResolverFactory.createResolver({
+  fileSystem: mfs,
+  extensions: ['.js', '.json']
+})
+
+const mockProjectPath = path.resolve(__dirname, '../fixture/mock-subject-1')
+
+describe('test loader', function () {
+  it.only('should be cool', async function () {
+    this.timeout = 5000
+
+    let result = await load(
+      path.resolve(mockProjectPath, 'index.js'),
+      {
+        useSourceMap: true,
+        module: {
+          rules: [
+            {
+              test: /\.js$/,
+              exclude: /node_modules/,
+              use: [
+                {
+                  loader: require.resolve('babel-loader'),
+                  options: {
+                    babelrc: false,
+                    presets: [
+                      [
+                        require.resolve('babel-preset-env'),
+                        {
+                          modules: false,
+                          targets: {
+                            browsers: ['> 1%', 'last 2 versions', 'not ie <= 8']
+                          }
+                        }
+                      ],
+                      require.resolve('babel-preset-stage-2')
+                    ],
+                    plugins: [
+                      [
+                        require('babel-plugin-transform-runtime'),
+                        {
+                          helpers: true,
+                          polyfill: true,
+                          regenerator: true,
+                          moduleName: resolveModule('babel-runtime')
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              test: /\.png$/,
+              use: [
+                {
+                  loader: require.resolve('url-loader'),
+                  options: {
+                    limit: 10,
+                    name: 'img/[name]=[hash].[ext]'
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        output: {
+          path: path.resolve(__dirname, 'dist'),
+          publicPath: '/'
+        },
+        context: path.resolve(__dirname)
+      },
+      {
+        resolver,
+        fs: mfs
+      }
+    )
+
+    console.log(result)
+  })
+})
