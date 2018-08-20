@@ -18,6 +18,7 @@ const inline = require('postcss-url/src/type/inline')
 const {prepareAsset} = require('postcss-url/src/lib/paths')
 const fs = require('fs-extra')
 const sharedAsset = require('./asset')
+const {pathFormat} = require('../../../../../utils/helper')
 
 const aliasRegExp = /^~?@\//
 const nodeModulesExp = /^~?@?[a-zA-Z]/
@@ -57,22 +58,30 @@ module.exports = {
         // url: 'inline',
         maxSize: 5,
         basePath: path.dirname(options.filename),
-        assetsPath: path.resolve(options.outputPath, 'img'),
+        assetsPath: assetOpts.output,
         fallback (asset, dir, opts, decl, warn, result, addDependency) {
-          let publicPath = options.asset.replace(/([^/])$/, '$1/')
+          let file = getFile(asset, opts, dir, warn)
+          addDependency(file.path)
+
+          if (options.NODE_ENV === 'development') {
+            let key = path.relative(options.dir, asset.absolutePath)
+            key = pathFormat(key, false)
+            return `/${key}`
+          }
+
           let outputPath = assetOpts.output
 
-          let file = getFile(asset, opts, dir, warn)
+          // let file = getFile(asset, opts, dir, warn)
           let name = assetOpts.getName(file.path, file.contents)
 
           let dist = path.resolve(outputPath, name)
-          if (!options.fs.existsSync(dist)) {
-            fs.ensureDirSync(outputPath, {fs: options.fs})
-            options.fs.writeFileSync(dist, file.contents, 'utf-8')
+
+          if (!fs.existsSync(dist)) {
+            fs.ensureDirSync(outputPath)
+            fs.writeFileSync(dist, file.contents, 'utf-8')
           }
 
-          addDependency(file.path)
-          return publicPath + name
+          return assetOpts.publicPath + name
         }
       })
     ]

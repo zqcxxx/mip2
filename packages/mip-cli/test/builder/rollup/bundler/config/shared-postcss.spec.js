@@ -10,7 +10,7 @@ const {expect} = require('chai')
 const glob = require('glob')
 
 describe('test shared postcss plugins config', function () {
-  let options = {
+  let commonOptions = {
     filename: path.resolve(__dirname, '../../../../mock/fragment-files/alias.less'),
     outputPath: path.resolve(__dirname, 'dist'),
     dir: path.resolve(__dirname, '../../../../mock/fragment-files'),
@@ -19,10 +19,11 @@ describe('test shared postcss plugins config', function () {
   }
 
   before(function () {
-    return fs.remove(options.outputPath)
+    return fs.remove(commonOptions.outputPath)
   })
 
   it('autoprefixer and url should be ok', function () {
+    let options = Object.assign({}, commonOptions)
     let plugins = sharedPostcssConfig.plugins(options)
     let file = fs.readFileSync(options.filename, 'utf-8')
     let processor = postcss()
@@ -34,7 +35,7 @@ describe('test shared postcss plugins config', function () {
       })
       .then(result => {
         expect(result.css).to.include('-webkit-box')
-        expect(result.css).to.include('https://www.baidu.com/')
+        expect(result.css).to.include('https://www.baidu.com/assets/')
 
         let distAseets = glob.sync('assets/mip-logo-*.png', {
           root: options.outputPath,
@@ -57,7 +58,26 @@ describe('test shared postcss plugins config', function () {
       })
   })
 
+  it('autoprefixer and url should be ok', function () {
+    let options = Object.assign({}, commonOptions, {
+      NODE_ENV: 'development'
+    })
+    let plugins = sharedPostcssConfig.plugins(options)
+    let file = fs.readFileSync(options.filename, 'utf-8')
+    let processor = postcss()
+    plugins.forEach(plugin => processor.use(plugin))
+
+    return processor.process(file, {
+        from: options.filename,
+        to: path.resolve(options.outputPath, 'hehe.css')
+      })
+      .then(result => {
+        expect(result.css).to.include('-webkit-box')
+        expect(result.css).to.include('/static/mip-logo.png')
+      })
+  })
+
   after(function () {
-    return fs.remove(options.outputPath)
+    return fs.remove(commonOptions.outputPath)
   })
 })

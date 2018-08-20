@@ -24,17 +24,18 @@ const defaultInclude = [
 ]
 
 module.exports = function url(options = {}) {
-  const {
+  let {
     limit = 10 * 1024,
     include = defaultInclude,
     exclude,
     outputPath = '',
     publicPath = '',
-    emitFiles = true,
-    outputFileSystem = fs
+    emitFiles = true
   } = options
 
-  const assetConfig = assetFactory({outputPath})
+  // publicPath = publicPath.replace(/([^/])$/, '$1/')
+
+  const assetConfig = assetFactory(options)
 
   const filter = createFilter(include, exclude)
   const copies = Object.create(null)
@@ -50,8 +51,8 @@ module.exports = function url(options = {}) {
       let data
       if ((limit && stats.size > limit) || limit === 0) {
         let filename = assetConfig.getName(id, buffer)
-        data = `${publicPath}${filename}`
-        copies[id] = `${outputPath}${filename}`
+        data = `${assetConfig.publicPath}${filename}`
+        copies[id] = path.resolve(assetConfig.output, filename)
       } else {
         const mimetype = mime.getType(id)
         const isSVG = mimetype === 'image/svg+xml'
@@ -77,7 +78,6 @@ module.exports = function url(options = {}) {
 
 function copy(src, dest) {
   return new Promise((resolve, reject) => {
-    if (file)
     const read = fs.createReadStream(src)
     read.on('error', reject)
     const write = fs.createWriteStream(dest)

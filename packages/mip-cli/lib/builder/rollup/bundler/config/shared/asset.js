@@ -13,6 +13,7 @@ module.exports = function (options) {
       let extname = path.extname(filename)
       let basename = path.basename(filename, extname)
       return basename + '-' + hash(content) + extname
-    }
+    },
+    publicPath: (options.publicPath || options.asset).replace(/([^/]$)/, '$1/') + 'assets/'
   }
 }

@@ -49,7 +49,7 @@ describe('test rollup postcss plugin config', function () {
 
     expect(result.code).to.contain('.second')
     expect(result.code).to.not.contain('@import')
-    expect(result.code).to.contain('https://www.baidu.com/mip-logo')
+    expect(result.code).to.contain('https://www.baidu.com/assets/mip-logo')
     expect(result.code).to.contain('-webkit-box')
   })
 
@@ -80,7 +80,7 @@ describe('test rollup postcss plugin config', function () {
     expect(result.code).to.contain('.simple')
     expect(result.code).to.contain('.index .haha')
     expect(result.code).to.not.contain('@import')
-    expect(result.code).to.contain('https://www.baidu.com/mip-logo')
+    expect(result.code).to.contain('https://www.baidu.com/assets/mip-logo')
     expect(result.code).to.contain('-webkit-box')
   })
 

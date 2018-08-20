@@ -13,21 +13,20 @@ const url = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-pl
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
-describe.only('test rollup vue plugin config', function () {
-  let options = {
+describe('test rollup vue plugin config', function () {
+  let commonOptions = {
     dir: path.resolve(__dirname, '../../../../mock/fragment-files'),
     filename: path.resolve(__dirname, '../../../../mock/fragment-files/simple.vue'),
     outputPath: path.resolve(__dirname, 'dist'),
-    asset: 'https://www.baidu.com/',
-    fs: fs,
-    NODE_ENV: 'production'
+    asset: 'https://www.baidu.com/'
   }
 
   before(function () {
-    return fs.remove(options.outputPath)
+    return fs.remove(commonOptions.outputPath)
   })
 
-  it('should be generate css successfully', async function () {
+  it('should be generate vue plugin successfully', async function () {
+    let options = Object.assign({}, commonOptions, {NODE_ENV: 'production'})
     let vueConfig = vueConfigFactory(options)
 
     let bundler = await rollup.rollup({
@@ -36,8 +35,9 @@ describe.only('test rollup vue plugin config', function () {
         vue(vueConfig),
         url({
           limit: 5 * 1024,
-          outputFileSystem: options.fs,
-          publicPath: options.asset
+          publicPath: options.asset,
+          asset: options.asset,
+          outputPath: options.outputPath
         })
       ]
     })
@@ -56,11 +56,46 @@ describe.only('test rollup vue plugin config', function () {
     expect(result.code).to.contain('.index .haha')
     expect(result.code).to.contain('.second')
     expect(result.code).to.not.contain('@import')
-    expect(result.code).to.contain('https://www.baidu.com/mip-logo')
+    expect(result.code).to.contain('https://www.baidu.com/assets/mip-logo')
+    expect(result.code).to.contain('-webkit-box')
+  })
+
+  it('should be generate vue plugin successfully in development mode', async function () {
+    let options = Object.assign({}, commonOptions, {NODE_ENV: 'development'})
+    let vueConfig = vueConfigFactory(options)
+
+    let bundler = await rollup.rollup({
+      input: options.filename,
+      plugins: [
+        vue(vueConfig),
+        url({
+          limit: 5 * 1024,
+          publicPath: options.asset,
+          asset: options.asset,
+          outputPath: options.outputPath
+        })
+      ]
+    })
+
+    let result = await bundler.generate({
+      file: path.resolve(options.outputPath, 'index.js'),
+      name: 'haha',
+      sourcemap: true,
+      format: 'amd',
+      amd: {
+        id: 'test-amd-id'
+      }
+    })
+
+    expect(result.code).to.contain('.simple')
+    expect(result.code).to.contain('.index .haha[data-v-')
+    expect(result.code).to.contain('.second')
+    // expect(result.code).to.not.contain('@import')
+    expect(result.code).to.contain('/static/mip-logo.png')
     expect(result.code).to.contain('-webkit-box')
   })
 
   after(function () {
-    return fs.remove(options.outputPath)
+    return fs.remove(commonOptions.outputPath)
   })
 })
