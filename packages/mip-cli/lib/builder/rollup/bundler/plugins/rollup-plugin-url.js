@@ -7,9 +7,9 @@
 const {createFilter} = require('rollup-pluginutils')
 const mime = require('mime')
 // const crypto = require('crypto')
-const path = require('path')
+// const path = require('path')
 const fs = require('fs-extra')
-const assetFactory = require('../config/shared/asset')
+// const assetFactory = require('../config/shared/asset')
 
 const defaultInclude = [
   '**/*.svg',
@@ -26,7 +26,7 @@ module.exports = function url (options = {}) {
     emitFiles = true
   } = options
 
-  const assetOpts = assetFactory(options)
+  // const assetOpts = assetFactory(options)
 
   const filter = createFilter(include, exclude)
   const copies = Object.create(null)
@@ -41,7 +41,7 @@ module.exports = function url (options = {}) {
 
       let data
       if ((limit && stats.size > limit) || limit === 0) {
-        assetOpts.setAsset(id, buffer)
+        let assetOpts = options.load(id, buffer)
         data = assetOpts.url
         copies[id] = assetOpts.dist
       } else {

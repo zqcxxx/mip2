@@ -3,7 +3,7 @@
  * @author clark-t (clarktanglei@163.com)
  */
 const path = require('path')
-const {hash} = require('../../../../../utils/helper')
+const {hash, pathFormat} = require('../../../../../utils/helper')
 // const hash = require('postcss-url/src/lib/hash')
 
 module.exports = function (options) {
@@ -18,21 +18,25 @@ module.exports = function (options) {
   return {
     outputPath: outputPath,
     publicPath: publicPath,
-    // outputPath alias
-    // output: outputPath,
-    get asset () {
-      return asset
-    },
-    setAsset (fileName, content) {
-      asset.filename = fileName
+    load (filename, content) {
+      asset.filename = filename
       asset.content = content
-      asset.extname = path.extname(fileName)
-      asset.basename = path.basename(fileName, asset.extname)
+      asset.extname = path.extname(filename)
+      asset.basename = path.basename(filename, asset.extname)
       asset.hash = hash(content)
 
       name = asset.basename + '-' + asset.hash + asset.extname
-      url = `${publicPath}${name}`
       dist = path.resolve(outputPath, name)
+
+      if (options.NODE_ENV === 'development') {
+        url = path.relative(options.dir, filename)
+        url = `/${pathFormat(url, false)}`
+      } else {
+        url = `${publicPath}${name}`
+      }
+    },
+    get asset () {
+      return asset
     },
     get name () {
       return asset.basename + '-' + asset.hash + asset.extname
@@ -43,7 +47,5 @@ module.exports = function (options) {
     get dist () {
       return dist
     }
-    // publicPath alias
-    // asset: publicPath
   }
 }
