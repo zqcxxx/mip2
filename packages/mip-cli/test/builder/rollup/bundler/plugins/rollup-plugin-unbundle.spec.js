@@ -16,7 +16,7 @@ const unbundleConfigFactory = require('../../../../../lib/builder/rollup/bundler
 const projectDir = path.resolve(__dirname, '../../../../mock/amd-externals')
 const etplDir = path.resolve(projectDir, 'node_modules/etpl')
 
-describe.only('test rollup-plugin-unbundle', function () {
+describe('test rollup-plugin-unbundle', function () {
   let options = {
     filename: path.resolve(projectDir, 'components/mip-example/mip-example.js'),
     outputPath: path.resolve(__dirname, 'dist'),
@@ -24,6 +24,7 @@ describe.only('test rollup-plugin-unbundle', function () {
   }
 
   before(async function () {
+    this.timeout(15000)
     await fs.remove(options.outputPath)
     if (await fs.exists(etplDir)) {
       return

@@ -11,9 +11,10 @@ const glob = require('glob')
 
 describe('test shared postcss plugins config', function () {
   let options = {
-    filename: path.resolve(__dirname, '../../../../mock/fragment-files/index.less'),
+    filename: path.resolve(__dirname, '../../../../mock/fragment-files/alias.less'),
     outputPath: path.resolve(__dirname, 'dist'),
-    asset: 'https://www.baidu.com/mip-logo-b1e667b6.png',
+    dir: path.resolve(__dirname, '../../../../mock/fragment-files'),
+    asset: 'https://www.baidu.com/',
     fs: fs
   }
 
