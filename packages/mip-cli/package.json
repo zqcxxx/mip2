@@ -70,6 +70,7 @@
     "ora": "^2.1.0",
     "postcss": "^7.0.2",
     "postcss-import": "^12.0.0",
+    "postcss-import-sync": "^7.1.4",
     "postcss-loader": "^2.1.5",
     "postcss-url": "^8.0.0",
     "precinct": "^4.2.0",

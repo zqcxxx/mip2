@@ -12,6 +12,7 @@ const autoprefixer = require('autoprefixer')
 const url = require('postcss-url')
 // 异步模块
 // const imports = require('postcss-import')
+const importSync = require('postcss-import-sync')
 const getFile = require('postcss-url/src/lib/get-file')
 const inline = require('postcss-url/src/type/inline')
 const {prepareAsset} = require('postcss-url/src/lib/paths')
@@ -27,20 +28,21 @@ module.exports = {
   },
   plugins (options) {
     let assetOpts = sharedAsset(options)
+
     return [
-      // imports({
-      //   resolve (asset, baseDir) {
-      //     if (aliasRegExp.test(asset)) {
-      //       return path.resolve(options.dir, asset.replace(aliasRegExp, ''))
-      //     }
+      importSync({
+        resolve (asset, baseDir) {
+          if (aliasRegExp.test(asset)) {
+            return path.resolve(options.dir, asset.replace(aliasRegExp, ''))
+          }
 
-      //     if (nodeModulesExp.test(asset)) {
-      //       return path.resolve(options.dir, 'node_modules', asset.replace(nodeModulesExp, ''))
-      //     }
+          if (nodeModulesExp.test(asset)) {
+            return path.resolve(options.dir, 'node_modules', asset.replace(nodeModulesExp, ''))
+          }
 
-      //     return path.resolve(baseDir, asset)
-      //   }
-      // }),
+          return path.resolve(baseDir, asset)
+        }
+      }),
       autoprefixer({
         browsers: ['> 1%', 'last 2 versions', 'ie 9-10']
       }),

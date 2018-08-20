@@ -1,6 +1,6 @@
 <template>
   <div>
-    <mip-img></mip-img>
+    <mip-img :src="require('./mip-logo.png')"></mip-img>
     {{ name }}
   </div>
 </template>

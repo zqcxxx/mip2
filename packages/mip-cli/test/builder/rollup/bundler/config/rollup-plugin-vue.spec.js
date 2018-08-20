@@ -7,11 +7,15 @@ const path = require('path')
 const rollup = require('rollup')
 const vueConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/vue')
 const vue = require('rollup-plugin-vue').default
+// const nodeResolve = require('rollup-plugin-node-resolve')
+// const commonjs = require('rollup-plugin-node-commonjs')
+const url = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-plugin-url')
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
-describe('test rollup vue plugin config', function () {
+describe.only('test rollup vue plugin config', function () {
   let options = {
+    dir: path.resolve(__dirname, '../../../../mock/fragment-files'),
     filename: path.resolve(__dirname, '../../../../mock/fragment-files/simple.vue'),
     outputPath: path.resolve(__dirname, 'dist'),
     asset: 'https://www.baidu.com/',
@@ -29,7 +33,12 @@ describe('test rollup vue plugin config', function () {
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        vue(vueConfig)
+        vue(vueConfig),
+        url({
+          limit: 5 * 1024,
+          outputFileSystem: options.fs,
+          publicPath: options.asset
+        })
       ]
     })
 

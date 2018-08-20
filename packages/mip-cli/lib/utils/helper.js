@@ -7,6 +7,7 @@ const path = require('path')
 const fs = require('fs-extra')
 const glob = require('glob')
 const minimatch = require('minimatch')
+const crypto = require('crypto')
 
 function noop () {}
 
@@ -125,6 +126,13 @@ function match (rule, str) {
   throw Error('not illegal type of rule')
 }
 
+function hash (buffer) {
+  return crypto.createHash('sha1')
+    .update(buffer)
+    .digest('hex')
+    .substr(0, 16)
+}
+
 module.exports = {
   noop,
   resolvePath,
@@ -135,5 +143,6 @@ module.exports = {
   pathFormat,
   removeExt,
   objectSubset,
-  match
+  match,
+  hash
 }
