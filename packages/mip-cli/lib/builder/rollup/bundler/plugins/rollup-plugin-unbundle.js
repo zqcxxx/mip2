@@ -6,7 +6,7 @@
 
 const path = require('path')
 const {createFilter} = require('rollup-pluginutils')
-const minimatch = require('minimatch')
+// const minimatch = require('minimatch')
 
 module.exports = function (options = {}) {
   const filter = createFilter(options.include, options.exclude)

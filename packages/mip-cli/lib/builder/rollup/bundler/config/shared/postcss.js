@@ -25,7 +25,7 @@ const nodeModulesExp = /^~?@?[a-zA-Z]/
 
 module.exports = {
   options (options) {
-    return
+    // return
   },
   plugins (options) {
     let assetOpts = sharedAsset(options)
@@ -58,7 +58,7 @@ module.exports = {
         // url: 'inline',
         maxSize: 5,
         basePath: path.dirname(options.filename),
-        assetsPath: assetOpts.output,
+        assetsPath: assetOpts.outputPath,
         fallback (asset, dir, opts, decl, warn, result, addDependency) {
           let file = getFile(asset, opts, dir, warn)
           addDependency(file.path)
@@ -69,19 +69,23 @@ module.exports = {
             return `/${key}`
           }
 
-          let outputPath = assetOpts.output
+          assetOpts.setAsset(file.path, file.contents)
+
+          let {dist, outputPath, url} = assetOpts
+          // let outputPath = assetOpts.output
 
           // let file = getFile(asset, opts, dir, warn)
-          let name = assetOpts.getName(file.path, file.contents)
+          // let name = assetOpts.getName(file.path, file.contents)
 
-          let dist = path.resolve(outputPath, name)
+          // let dist = path.resolve(outputPath, name)
 
           if (!fs.existsSync(dist)) {
             fs.ensureDirSync(outputPath)
             fs.writeFileSync(dist, file.contents, 'utf-8')
           }
 
-          return assetOpts.publicPath + name
+          return url
+          // return assetOpts.publicPath + name
         }
       })
     ]

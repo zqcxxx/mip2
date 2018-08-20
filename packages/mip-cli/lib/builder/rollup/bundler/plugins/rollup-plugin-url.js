@@ -2,11 +2,6 @@
  * @file rollup-plugin-url.js
  * @author clark-t (clarktanglei@163.com)
  * @description folk from https://github.com/rollup/rollup-plugin-url
- *
- * change:
- * 1. add outputFileSystem options
- * 2. change output filename rule
- * 3. add ongenerate
  */
 
 const {createFilter} = require('rollup-pluginutils')
@@ -23,19 +18,15 @@ const defaultInclude = [
   '**/*.gif'
 ]
 
-module.exports = function url(options = {}) {
+module.exports = function url (options = {}) {
   let {
     limit = 10 * 1024,
     include = defaultInclude,
     exclude,
-    outputPath = '',
-    publicPath = '',
     emitFiles = true
   } = options
 
-  // publicPath = publicPath.replace(/([^/])$/, '$1/')
-
-  const assetConfig = assetFactory(options)
+  const assetOpts = assetFactory(options)
 
   const filter = createFilter(include, exclude)
   const copies = Object.create(null)
@@ -50,9 +41,9 @@ module.exports = function url(options = {}) {
 
       let data
       if ((limit && stats.size > limit) || limit === 0) {
-        let filename = assetConfig.getName(id, buffer)
-        data = `${assetConfig.publicPath}${filename}`
-        copies[id] = path.resolve(assetConfig.output, filename)
+        assetOpts.setAsset(id, buffer)
+        data = assetOpts.url
+        copies[id] = assetOpts.dist
       } else {
         const mimetype = mime.getType(id)
         const isSVG = mimetype === 'image/svg+xml'
@@ -67,16 +58,12 @@ module.exports = function url(options = {}) {
       // Allow skipping saving files for server side builds.
       if (!emitFiles) return
 
-      const base = options.dir || path.dirname(options.file)
-      return Promise.all(Object.keys(copies).map(name => {
-        const output = copies[name]
-        return copy(name, path.join(base, output))
-      }))
+      return Promise.all(Object.keys(copies).map(name => copy(name, copies[name])))
     }
   }
 }
 
-function copy(src, dest) {
+function copy (src, dest) {
   return new Promise((resolve, reject) => {
     const read = fs.createReadStream(src)
     read.on('error', reject)
@@ -88,15 +75,15 @@ function copy(src, dest) {
 }
 
 // https://github.com/filamentgroup/directory-encoder/blob/master/lib/svg-uri-encoder.js
-function encodeSVG(buffer) {
-  return encodeURIComponent(buffer.toString("utf-8")
+function encodeSVG (buffer) {
+  return encodeURIComponent(buffer.toString('utf-8')
     // strip newlines and tabs
-    .replace(/[\n\r]/gmi, "")
-    .replace(/\t/gmi, " ")
+    .replace(/[\n\r]/gmi, '')
+    .replace(/\t/gmi, ' ')
     // strip comments
-    .replace(/<!\-\-(.*(?=\-\->))\-\->/gmi, "")
+    .replace(/<!--(.*(?=-->))-->/gmi, '')
     // replace
-    .replace(/'/gmi, "\\i"))
+    .replace(/'/gmi, '\\i'))
     // encode brackets
-    .replace(/\(/g, "%28").replace(/\)/g, "%29")
+    .replace(/\(/g, '%28').replace(/\)/g, '%29')
 }

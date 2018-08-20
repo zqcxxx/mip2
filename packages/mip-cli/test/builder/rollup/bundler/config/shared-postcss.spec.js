@@ -30,32 +30,31 @@ describe('test shared postcss plugins config', function () {
     plugins.forEach(plugin => processor.use(plugin))
 
     return processor.process(file, {
-        from: options.filename,
-        to: path.resolve(options.outputPath, 'hehe.css')
+      from: options.filename,
+      to: path.resolve(options.outputPath, 'hehe.css')
+    }).then(result => {
+      expect(result.css).to.include('-webkit-box')
+      expect(result.css).to.include('https://www.baidu.com/assets/')
+
+      let distAseets = glob.sync('assets/mip-logo-*.png', {
+        root: options.outputPath,
+        cwd: options.outputPath
       })
-      .then(result => {
-        expect(result.css).to.include('-webkit-box')
-        expect(result.css).to.include('https://www.baidu.com/assets/')
 
-        let distAseets = glob.sync('assets/mip-logo-*.png', {
-          root: options.outputPath,
-          cwd: options.outputPath
-        })
+      expect(distAseets.length).to.be.equal(1)
 
-        expect(distAseets.length).to.be.equal(1)
+      let imgMessage = result.messages.filter(
+        obj => path.resolve(obj.parent) === options.filename && /\.png$/.test(obj.file)
+      )
 
-        let imgMessage = result.messages.filter(
-          obj => path.resolve(obj.parent) === options.filename && /\.png$/.test(obj.file)
-        )
+      expect(imgMessage.length).to.be.equal(1)
 
-        expect(imgMessage.length).to.be.equal(1)
-
-        imgMessage.forEach(obj => {
-          let originalBasename = path.basename(obj.file, '.png')
-          let distBasename = path.basename(distAseets[0], '.png')
-          expect(distBasename).to.contain(originalBasename)
-        })
+      imgMessage.forEach(obj => {
+        let originalBasename = path.basename(obj.file, '.png')
+        let distBasename = path.basename(distAseets[0], '.png')
+        expect(distBasename).to.contain(originalBasename)
       })
+    })
   })
 
   it('autoprefixer and url should be ok', function () {
@@ -68,13 +67,12 @@ describe('test shared postcss plugins config', function () {
     plugins.forEach(plugin => processor.use(plugin))
 
     return processor.process(file, {
-        from: options.filename,
-        to: path.resolve(options.outputPath, 'hehe.css')
-      })
-      .then(result => {
-        expect(result.css).to.include('-webkit-box')
-        expect(result.css).to.include('/static/mip-logo.png')
-      })
+      from: options.filename,
+      to: path.resolve(options.outputPath, 'hehe.css')
+    }).then(result => {
+      expect(result.css).to.include('-webkit-box')
+      expect(result.css).to.include('/static/mip-logo.png')
+    })
   })
 
   after(function () {

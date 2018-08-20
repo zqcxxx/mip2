@@ -7,13 +7,43 @@ const {hash} = require('../../../../../utils/helper')
 // const hash = require('postcss-url/src/lib/hash')
 
 module.exports = function (options) {
+  const outputPath = path.resolve(options.outputPath, 'assets')
+  const publicPath = (options.publicPath || options.asset).replace(/([^/]$)/, '$1/') + 'assets/'
+
+  let asset = {}
+  let name
+  let url
+  let dist
+
   return {
-    output: path.resolve(options.outputPath, 'assets'),
-    getName (filename, content) {
-      let extname = path.extname(filename)
-      let basename = path.basename(filename, extname)
-      return basename + '-' + hash(content) + extname
+    outputPath: outputPath,
+    publicPath: publicPath,
+    // outputPath alias
+    // output: outputPath,
+    get asset () {
+      return asset
     },
-    publicPath: (options.publicPath || options.asset).replace(/([^/]$)/, '$1/') + 'assets/'
+    setAsset (fileName, content) {
+      asset.filename = fileName
+      asset.content = content
+      asset.extname = path.extname(fileName)
+      asset.basename = path.basename(fileName, asset.extname)
+      asset.hash = hash(content)
+
+      name = asset.basename + '-' + asset.hash + asset.extname
+      url = `${publicPath}${name}`
+      dist = path.resolve(outputPath, name)
+    },
+    get name () {
+      return asset.basename + '-' + asset.hash + asset.extname
+    },
+    get url () {
+      return url
+    },
+    get dist () {
+      return dist
+    }
+    // publicPath alias
+    // asset: publicPath
   }
 }

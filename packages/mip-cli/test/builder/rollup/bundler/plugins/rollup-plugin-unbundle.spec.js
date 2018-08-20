@@ -35,7 +35,7 @@ describe('test rollup-plugin-unbundle', function () {
   })
 
   it('should be external js in node_modules and common', async function () {
-    conf = unbundleConfigFactory(options)
+    let conf = unbundleConfigFactory(options)
 
     let bundler = await rollup.rollup({
       input: options.filename,

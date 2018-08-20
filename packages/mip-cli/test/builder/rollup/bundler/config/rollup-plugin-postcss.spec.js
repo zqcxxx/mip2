@@ -13,8 +13,7 @@ const {expect} = require('chai')
 describe('test rollup postcss plugin config', function () {
   let common = {
     outputPath: path.resolve(__dirname, 'dist'),
-    asset: 'https://www.baidu.com/',
-    fs: fs
+    asset: 'https://www.baidu.com/'
   }
 
   let projectDir = path.resolve(__dirname, '../../../../mock/fragment-files')
