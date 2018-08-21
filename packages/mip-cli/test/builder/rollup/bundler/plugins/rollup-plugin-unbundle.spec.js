@@ -1,5 +1,5 @@
 /**
- * @file rollup-plugin-node-resolve.js
+ * @file rollup-plugin-unbundle.spec.js
  * @author clark-t (clarktanglei@163.com)
  */
 
