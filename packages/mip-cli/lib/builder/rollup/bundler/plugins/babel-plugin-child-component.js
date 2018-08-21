@@ -5,14 +5,14 @@
 
 const glob = require('glob')
 const {isComponentPath} = require('../../../../utils/project-path')
-const {pathFormat} = require('../../../../utils/helper')
+// const {pathFormat} = require('../../../../utils/helper')
 const path = require('path')
 
 module.exports = function ({types: t}) {
   return {
     visitor: {
-      Program (nodePath, opts) {
-        if (!isComponentPath(opts.opts.basedir, this.file.opts.filename)) {
+      Program (nodePath, state) {
+        if (!isComponentPath(state.opts.basedir, this.file.opts.filename)) {
           return
         }
 
@@ -33,7 +33,7 @@ module.exports = function ({types: t}) {
         components.forEach(component => {
           let source = `./${component}`
           let basename = path.basename(component, path.extname(component))
-          let name = `__mip_child_component_${basename.replace(/-/g, '_')}`
+          let name = `__mip_child_component_${basename.replace(/-/g, '_')}__`
 
           nodePath.unshiftContainer(
             'body',

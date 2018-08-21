@@ -37,7 +37,15 @@ module.exports = function (options = {}) {
         {
           basedir: options.dir
         }
-      ]
+      ],
+      [
+        require.resolve('../plugins/babel-plugin-component'),
+        {
+          basedir: options.dir
+        }
+      ],
+      require.resolve('../plugins/babel-plugin-require-ensure'),
+      require.resolve('../plugins/babel-plugin-require-context')
     ]
   }
 

@@ -3,6 +3,8 @@
  * @author clark-t (clarktanglei@163.com)
  */
 
+/* globals describe, before, after, it */
+
 const path = require('path')
 const rollup = require('rollup')
 const babelConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/babel')
@@ -12,7 +14,7 @@ const unbundle = require('../../../../../lib/builder/rollup/bundler/plugins/roll
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
-describe.only('test rollup-plugin-alias config', function () {
+describe.only('test rollup-plugin-babel config', function () {
   let commonOptions = {
     outputPath: path.resolve(__dirname, 'dist')
   }
@@ -50,7 +52,7 @@ describe.only('test rollup-plugin-alias config', function () {
       }
     })
 
-    console.log(result.code)
+    // console.log(result.code)
     // expect(result.code).to.contain('console.log')
   })
 
@@ -87,6 +89,39 @@ describe.only('test rollup-plugin-alias config', function () {
 
     expect(result.code).to.contain('this is mip example item')
     expect(result.code).to.contain('mip-example-item')
+  })
+
+  it.only('should be generate require.context successfully', async function () {
+    let options = Object.assign({}, commonOptions, {
+      filename: path.resolve(__dirname, '../../../../mock/fragment-files/require-context.js'),
+      dir: path.resolve(__dirname, '../../../../mock/fragment-files')
+    })
+
+    let bundler = await rollup.rollup({
+      input: options.filename,
+      plugins: [
+        unbundle(unbundleConfigFactory(options)),
+        babel(babelConfigFactory({
+          proxy: {
+            'https://path/to/sth': 'abc'
+          },
+          dir: options.dir
+        }))
+      ]
+    })
+
+    let result = await bundler.generate({
+      file: path.resolve(options.outputPath, 'index.js'),
+      name: 'haha',
+      sourcemap: true,
+      format: 'amd',
+      amd: {
+        id: 'test-amd-id'
+      }
+    })
+
+    console.log(result.code)
+    // expect(result.code).to.contain('console.log')
   })
 
   after(function () {
