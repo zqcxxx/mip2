@@ -38,9 +38,10 @@ module.exports = function ({types: t}) {
         let filename = this.file.opts.filename
         let dirname = path.dirname(filename)
 
-        let dir = path.resolve(dirname, nodePath.node.arguments[0].value)
-        let recursive = nodePath.node.arguments[1] && nodePath.node.arguments[1].value
-        let regexp = nodePath.node.arguments[2] && nodePath.node.arguments[2].value
+        let args = nodePath.node.arguments
+        let dir = path.resolve(dirname, args[0].value)
+        let recursive = args[1] && args[1].value
+        let regexp = args[2] && new RegExp(args[2].pattern, args[2].flags)
 
         let paths = getPaths(dir, recursive, regexp)
 
