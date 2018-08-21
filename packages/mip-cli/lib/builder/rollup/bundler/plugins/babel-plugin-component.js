@@ -19,12 +19,22 @@ module.exports = function ({types: t}) {
         let name = path.basename(basename, path.extname(basename))
         let dirname = path.dirname(this.file.opts.filename)
 
+        let exportPath
+
         for (let i = 0; i < nodePath.node.body.length; i++) {
           if (t.isExportDefaultDeclaration(nodoPath.node.body[i])) {
-            let exportPath = nodePath.get(`body.${i}`)
+            exportPath = nodePath.get(`body.${i}`)
             break;
           }
         }
+
+        if (!exportPath) {
+          return
+        }
+
+        let val = exportPath.node.declaration
+        exportPath.replaceWith(
+        )
       }
     }
   }
