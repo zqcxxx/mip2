@@ -3,18 +3,8 @@
  * @author clark-t (clarktanglei@163.com)
  */
 
-const alias = require('rollup-plugin-alias')
-const unbundle = require('../plugins/rollup-plugin-unbundle')
-const vue = require('rollup-plugin-vue').default
-const babel = require('rollup-plugin-babel')
-const postcss = require('rollup-plugin-postcss')
-const url = require('../plugins/rollup-plugin-url')
-const replace = require('rollup-plugin-replace')
-const nodeResolve = require('rollup-plugin-node-resolve')
-const commonjs = require('rollup-plugin-commonjs')
-
 module.exports = function (options) {
-  const config = name => {
+  const plugin = name => {
     let conf = require(`./${name}`)
     if (typeof conf === 'function') {
       return conf(options)
@@ -26,15 +16,15 @@ module.exports = function (options) {
   let rollupConfig = {
     input: options.filename,
     plugins: [
-      alias(config('alias')),
-      unbundle(config('unbundle')),
-      vue(config('vue')),
-      babel(config('babel')),
-      postcss(config('postcss')),
-      url(config('url')),
-      replace(config('replace')),
-      nodeResolve(config('node-resolve')),
-      commonjs()
+      plugin('alias'),
+      plugin('unbundle'),
+      plugin('vue'),
+      plugin('babel'),
+      plugin('postcss'),
+      plugin('url'),
+      plugin('replace'),
+      plugin('node-resolve'),
+      plugin('commonjs')
     ]
   }
 

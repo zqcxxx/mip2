@@ -9,8 +9,8 @@ const path = require('path')
 const rollup = require('rollup')
 const babelConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/babel')
 const unbundleConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/unbundle')
-const babel = require('rollup-plugin-babel')
-const unbundle = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-plugin-unbundle')
+// const babel = require('rollup-plugin-babel')
+// const unbundle = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-plugin-unbundle')
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
@@ -32,13 +32,13 @@ describe.only('test rollup-plugin-babel config', function () {
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        unbundle(unbundleConfigFactory(options)),
-        babel(babelConfigFactory({
+        unbundleConfigFactory(options),
+        babelConfigFactory({
           proxy: {
             'https://path/to/sth': 'abc'
           },
           dir: options.dir
-        }))
+        })
       ]
     })
 
@@ -67,13 +67,13 @@ describe.only('test rollup-plugin-babel config', function () {
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        unbundle(unbundleConfigFactory(options)),
-        babel(babelConfigFactory({
+        unbundleConfigFactory(options),
+        babelConfigFactory({
           proxy: {
             'https://path/to/sth': 'abc'
           },
           dir: options.dir
-        }))
+        })
       ]
     })
 
@@ -100,13 +100,13 @@ describe.only('test rollup-plugin-babel config', function () {
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        unbundle(unbundleConfigFactory(options)),
-        babel(babelConfigFactory({
+        unbundleConfigFactory(options),
+        babelConfigFactory({
           proxy: {
             'https://path/to/sth': 'abc'
           },
           dir: options.dir
-        }))
+        })
       ]
     })
 

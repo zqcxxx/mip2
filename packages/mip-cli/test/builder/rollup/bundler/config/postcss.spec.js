@@ -6,7 +6,7 @@
 const path = require('path')
 const rollup = require('rollup')
 const postcssConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/postcss')
-const postcss = require('rollup-plugin-postcss')
+// const postcss = require('rollup-plugin-postcss')
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
@@ -32,7 +32,7 @@ describe('test rollup postcss plugin config', function () {
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        postcss(postcssConfig)
+        postcssConfigFactory(options)
       ]
     })
 
@@ -57,12 +57,12 @@ describe('test rollup postcss plugin config', function () {
       filename: path.resolve(projectDir, 'mix.less')
     }, common)
 
-    let postcssConfig = postcssConfigFactory(options)
+    // let postcssConfig = postcssConfigFactory(options)
 
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        postcss(postcssConfig)
+        postcssConfigFactory(options)
       ]
     })
 

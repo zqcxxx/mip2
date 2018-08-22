@@ -2,12 +2,14 @@
  * @file url.js
  * @author clark-t (clarktanglei@163.com)
  */
+
+const url = require('../plugins/rollup-plugin-url')
 const sharedAsset = require('./shared/asset')
 
 module.exports = function (options = {}) {
   let assetOpts = sharedAsset(options)
 
-  return {
+  return url({
     include: [
       '**/*.png',
       '**/*.jpg',
@@ -25,5 +27,5 @@ module.exports = function (options = {}) {
       assetOpts.load(...args)
       return assetOpts
     }
-  }
+  })
 }

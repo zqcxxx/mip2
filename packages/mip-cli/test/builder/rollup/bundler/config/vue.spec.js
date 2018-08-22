@@ -6,10 +6,10 @@
 const path = require('path')
 const rollup = require('rollup')
 const vueConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/vue')
-const vue = require('rollup-plugin-vue').default
+// const vue = require('rollup-plugin-vue').default
 // const nodeResolve = require('rollup-plugin-node-resolve')
 // const commonjs = require('rollup-plugin-node-commonjs')
-const url = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-plugin-url')
+// const url = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-plugin-url')
 const urlConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/url')
 const fs = require('fs-extra')
 const {expect} = require('chai')
@@ -28,14 +28,14 @@ describe('test rollup vue plugin config', function () {
 
   it('should be generate vue plugin successfully', async function () {
     let options = Object.assign({}, commonOptions, {NODE_ENV: 'production'})
-    let vueConfig = vueConfigFactory(options)
-    let urlConfig = urlConfigFactory(options)
+    // let vueConfig = vueConfigFactory(options)
+    // let urlConfig = urlConfigFactory(options)
 
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        vue(vueConfig),
-        url(urlConfig)
+        vueConfigFactory(options),
+        urlConfigFactory(options)
       ]
     })
 
@@ -59,14 +59,14 @@ describe('test rollup vue plugin config', function () {
 
   it('should be generate vue plugin successfully in development mode', async function () {
     let options = Object.assign({}, commonOptions, {NODE_ENV: 'development'})
-    let vueConfig = vueConfigFactory(options)
-    let urlConfig = urlConfigFactory(options)
+    // let vueConfig = vueConfigFactory(options)
+    // let urlConfig = urlConfigFactory(options)
 
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        vue(vueConfig),
-        url(urlConfig)
+        vueConfigFactory(options),
+        urlConfigFactory(options)
       ]
     })
 

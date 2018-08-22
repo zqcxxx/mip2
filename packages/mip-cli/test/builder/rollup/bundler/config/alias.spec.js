@@ -6,7 +6,7 @@
 const path = require('path')
 const rollup = require('rollup')
 const aliasConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/alias')
-const alias = require('rollup-plugin-alias')
+// const alias = require('rollup-plugin-alias')
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
@@ -22,12 +22,10 @@ describe('test rollup-plugin-alias config', function () {
   })
 
   it('should be generate js successfully', async function () {
-    let aliasConfig = aliasConfigFactory(options)
-
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        alias(aliasConfig)
+        aliasConfigFactory(options)
       ]
     })
 

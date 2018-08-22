@@ -2,8 +2,9 @@
  * @file babel.js
  * @author clark-t (clarktanglei@163.com)
  */
+
+const babel = require('rollup-plugin-babel')
 const {resolveModule} = require('../../../../utils/helper')
-// const {isComponentPath}
 
 module.exports = function (options = {}) {
   let config = {
@@ -56,5 +57,5 @@ module.exports = function (options = {}) {
     ])
   }
 
-  return config
+  return babel(config)
 }

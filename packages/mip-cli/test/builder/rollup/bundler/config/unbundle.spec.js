@@ -10,7 +10,7 @@ const fs = require('fs-extra')
 const rollup = require('rollup')
 const nodeResolve = require('rollup-plugin-node-resolve')
 const commonjs = require('rollup-plugin-commonjs')
-const unbundle = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-plugin-unbundle')
+// const unbundle = require('../../../../../lib/builder/rollup/bundler/plugins/rollup-plugin-unbundle')
 const unbundleConfigFactory = require('../../../../../lib/builder/rollup/bundler/config/unbundle')
 
 const projectDir = path.resolve(__dirname, '../../../../mock/amd-externals')
@@ -35,12 +35,12 @@ describe('test rollup-plugin-unbundle', function () {
   })
 
   it('should be external js in node_modules and common', async function () {
-    let conf = unbundleConfigFactory(options)
+    // let conf = unbundleConfigFactory(options)
 
     let bundler = await rollup.rollup({
       input: options.filename,
       plugins: [
-        unbundle(conf),
+        unbundleConfigFactory(options),
         nodeResolve({
           extensions: ['.js', '.vue', '.json']
         }),
