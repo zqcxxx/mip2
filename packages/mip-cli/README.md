@@ -118,11 +118,11 @@ module.exports = {
     2. 修复 1.2.1 dev/build 模式下默认命令行参数失效的 bug
     3. 修复 dev 模式下 -d 参数不能传相对路径的 bug
     4. 升级 mip-sandbox，添加 `CustomEvent` 依赖
-    5. 增加 mip2 dev/build -i all 的参数简写
+    5. 增加 mip dev/build -i all 的参数简写
 
 - 1.2.1
     1. cli dev 和 build 命令增加 proxy 配置，支持对组件代码中字符串部分做替换以模拟实现开发和测试时的请求转发功能；
-    2. mip2 build 增加 -e/--env 指定当前编译的环境变量 process.env.NODE_ENV
+    2. mip build 增加 -e/--env 指定当前编译的环境变量 process.env.NODE_ENV
 
 - 1.2.0
     1. 升级 validator 依赖 mip-component-validator 至 1.1.0，该版本全流程改为异步实现
@@ -141,13 +141,13 @@ module.exports = {
     1. 升级 mip-sandbox 依赖，添加 `mipDataPromises` 入白名单
 
 - 1.1.6
-    1. mip2 dev 模式将 --autoopen 的简写改为 -o，新增 --asset 参数指定 public path，简写为 -a 与 build 保持一致。-a 默认为 '/'
+    1. mip dev 模式将 --autoopen 的简写改为 -o，新增 --asset 参数指定 public path，简写为 -a 与 build 保持一致。-a 默认为 '/'
 
 - 1.1.5
-    1. 支持 process.env.NODE_ENV， mip2 dev 的值为 'development'，mip2 build 的值为 'production'
+    1. 支持 process.env.NODE_ENV， mip dev 的值为 'development'，mip build 的值为 'production'
 
 - 1.1.4
-    1. mip2 build 产生的组件公用 js 直接指向线上
+    1. mip build 产生的组件公用 js 直接指向线上
     2. mip.config.js 新增 `build` 配置项
 
 - 1.1.2
