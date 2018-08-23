@@ -4,37 +4,34 @@
  */
 
 const VueLoaderPlugin = require('vue-loader/lib/plugin')
-// const sandboxLoader = require('./sandbox-loader');
 const styleLoaders = require('./style-loaders')
 const CustomElementPlugin = require('./custom-element-plugin')
-/* eslint-disable */
-const {resolveModule} = require('../../../utils/helper');
-/* eslint-enable */
 const {babelLoader, babelExternals} = require('./babel')
 const path = require('path')
 const componentExternals = require('./component-externals')
+const webpack = require('webpack')
 
 module.exports = function (options) {
-  return {
+  let config = {
     entry: options.entry,
     output: {
       path: options.outputPath,
-      filename: '[name]/[name].js',
+      filename: '[name].js',
       chunkFilename: '[name].[hash].js',
       publicPath: options.asset.replace(/\/$/, '') + '/'
     },
-    mode: options.mode,
+    mode: options.env === 'development' ? 'development' : 'production',
     context: options.context,
-    devtool: options.mode === 'development' ? 'inline-source-map' : false,
+    devtool: options.env === 'development' ? 'inline-source-map' : false,
     module: {
       rules: [
         {
           test: /\.vue$/,
           use: [
             {
-              loader: resolveModule('vue-loader'),
+              loader: require.resolve('vue-loader'),
               options: {
-                productionMode: options.mode === 'production'
+                productionMode: options.env !== 'development'
               }
             }
           ]
@@ -42,21 +39,21 @@ module.exports = function (options) {
         {
           test: /\.js$/,
           exclude: /node_modules/,
-          use: options.ignore
+          use: options.ignore && /(^|,)sandbox(,|$)/.test(options.ignore)
             ? [
-              babelLoader,
-              path.resolve(__dirname, 'child-component-loader.js')
+              babelLoader(options),
+              require.resolve('./child-component-loader')
             ]
             : [
-              path.resolve(__dirname, 'sandbox-loader.js'),
-              babelLoader,
-              path.resolve(__dirname, 'child-component-loader.js')
+              require.resolve('./sandbox-loader'),
+              babelLoader(options),
+              require.resolve('./child-component-loader')
             ]
         },
         {
           test: /\.(png|jpe?g|gif)$/,
           use: [{
-            loader: resolveModule('url-loader'),
+            loader: require.resolve('url-loader'),
             options: {
               limit: 1000,
               name: 'img/[name]-[hash].[ext]'
@@ -66,7 +63,7 @@ module.exports = function (options) {
         {
           test: /\.(otf|ttf|eot|svg|woff2?)(\?[a-z0-9=&.]+)?$/,
           use: [{
-            loader: resolveModule('url-loader'),
+            loader: require.resolve('url-loader'),
             options: {
               limit: 1000,
               name: 'font/[name]-[hash].[ext]'
@@ -80,7 +77,6 @@ module.exports = function (options) {
       babelExternals,
       componentExternals
     ],
-    // externals: Object.assign({}, babelExternals, externals),
     resolve: {
       extensions: ['.js', '.json', '.vue'],
       alias: {
@@ -89,7 +85,12 @@ module.exports = function (options) {
     },
     plugins: [
       new VueLoaderPlugin(),
-      new CustomElementPlugin()
+      new CustomElementPlugin(options),
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify(options.env)
+      })
     ]
   }
+
+  return config
 }

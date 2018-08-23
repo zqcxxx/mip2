@@ -2,17 +2,22 @@
 
 const cli = require('../lib/cli')
 const dev = require('../lib/dev')
+const validator = require('mip-component-validator')
 const path = require('path')
 const fs = require('fs')
+const {objectSubset} = require('../lib/utils/helper')
 
 cli.setup({
   noArgs: true,
   options: [
     ['-p, --port <n>', '启动端口号', parseInt],
-    ['-d, --dir <value>', '组件文件夹路径'],
+    ['-d, --dir <value>', '项目文件夹路径'],
     ['-l, --livereload', '启用调试自动刷新'],
-    ['-a, --autoopen <value>', '自动打开网页'],
-    ['-i, --ignore', '忽略沙盒注入'],
+    ['-a, --asset <value>', '静态资源 publicPath'],
+    ['-o, --autoopen <value>', '自动打开网页'],
+    /* eslint disable */
+    ['-i, --ignore [value]', '忽略沙盒注入或校验，可选参数为 -i sandbox, -i whitelist, -i sandbox,whitelist; -i 默认为 -i sandbox, -i all 默认为 -i sandbox,whitelist'],
+    /* eslint enable */
     ['-c, --config <value>', 'mip-cli 配置文件路径']
   ],
   help: [
@@ -30,4 +35,28 @@ if (fs.existsSync(configPath)) {
   defaultConfig = require(configPath)
 }
 
-dev(Object.assign(defaultConfig.dev || {}, cli.program))
+const conf = Object.assign(
+  defaultConfig.dev || {},
+  // FIX ME
+  objectSubset(cli.program, ['port', 'dir', 'livereload', 'asset', 'autoopen', 'ignore']),
+  {cliConfigPath: configPath}
+)
+
+if (conf.ignore === true) {
+  conf.ignore = 'sandbox'
+} else if (conf.ignore === 'all') {
+  conf.ignore = 'sandbox,whitelist'
+}
+
+if (conf.ignore && /(^|,)whitelist(,|$)/.test(conf.ignore)) {
+  dev(conf)
+} else {
+  validator.whitelist(conf.dir).then(reporter => {
+    if (reporter.errors.length) {
+      cli.error(reporter.errors[0].message)
+      // 先把白名单校验过程改成非中断式的
+      // process.exit(1)
+    }
+  })
+  .then(() => dev(conf))
+}

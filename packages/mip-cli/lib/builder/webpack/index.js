@@ -1,34 +1,33 @@
 /**
  * @file webpack builder
- * @author clark-t (clarktanglei@163.com
- * )
+ * @author clark-t (clarktanglei@163.com)
  */
 
 const webpack = require('webpack')
 const middleware = require('koa-webpack')
 const config = require('./config')
 const chokidar = require('chokidar')
-/* eslint-disable */
-const {globPify} = require('../../utils/helper');
-/* eslint-enable */
+const {pify, globPify} = require('../../utils/helper')
 const projectPath = require('../../utils/project-path')
+const validator = require('mip-component-validator')
 const path = require('path')
 const cli = require('../../cli')
 
 module.exports = class WebpackBuilder {
   constructor (options) {
-    this.outputDir = options.output || path.resolve('dist')
-    this.dir = options.dir
-    this.componentDir = projectPath.components(this.dir)
-    this.asset = options.asset
-    this.ignore = options.ignore
+    this.options = options
 
-    if (options.dev) {
-      this.mode = 'development'
+    Object.keys(options).forEach(key => {
+      this[key] = options[key]
+    })
+
+    this.outputDir = options.output || path.resolve('dist')
+    this.packageJsonPathname = path.resolve(this.dir, 'package.json')
+    this.componentDir = projectPath.components(this.dir)
+
+    if (this.env === 'development') {
       this.initDev()
       this.initWatcher()
-    } else {
-      this.mode = 'production'
     }
   }
 
@@ -42,17 +41,13 @@ module.exports = class WebpackBuilder {
 
   async build () {
     await this.initConfig()
-    return new Promise((resolve, reject) => {
-      webpack(this.config, (err, result) => {
-        if (err) {
-          reject(err)
-        } else if (result.hasErrors()) {
-          reject(result.compilation.errors)
-        } else {
-          resolve(result)
-        }
-      })
-    })
+    let result = await pify(webpack)(this.config)
+
+    if (result.hasErrors()) {
+      throw Error(result.compilation.errors)
+    }
+
+    return result
   }
 
   async getEntries () {
@@ -64,43 +59,34 @@ module.exports = class WebpackBuilder {
     let components = await globPify('mip-*/mip-*.@(vue|js)', globOpts)
       .then(arr => arr.filter(name => /(mip-[\w-]+)\/\1\.(vue|js)$/.test(name)))
 
-    // let [vueComponents, jsComponents] = await Promise.all([
-    //   globPify('mip-*/mip-*.vue', globOpts).then(arr => arr.filter(name => /(mip-[\w-]+)\/\1\.vue$/.test(name))),
-    //   globPify('mip-*/mip-*.vue', globOpts).then(arr => arr.filter(name => /(mip-[\w-]+)\/\1\.vue$/.test(name)))
-    // ])
+    if (!components.length) {
+      cli.error(`在该路径下找不到 mip 组件入口文件，请检查路径是否规范：\n${this.componentDir}`)
+      // 在 dev 模式下 throw Error 不会导致中断也不会显示错误，因此需要 process.exit(1) 强制中断
+      process.exit(1)
+    }
 
-    // globPify('mip-*/mip-*.vue', globOpts)
-    //   .then(arr => arr.filter(name => /(mip-[\w-]+)\/\1\.vue$/.test(name)))
-
-    return components.reduce((entries, pathname) => {
+    let entries = components.reduce((entries, pathname) => {
       let basename = path.basename(pathname, path.extname(pathname))
-      entries[basename] = path.resolve(this.componentDir, pathname)
+      entries[`${basename}/${basename}`] = path.resolve(this.componentDir, pathname)
       return entries
     }, {})
 
-    // let [singleComponents, complexComponents] = await Promise.all([
-    //     globPify('mip-*.vue', globOpts),
-    //     globPify('mip-*/mip-*.vue', globOpts)
-    //         .then(arr => arr.filter(name => /(mip-\w+)\/\1\.vue$/.test(name)))
-    // ]);
-
-    // return [...singleComponents, ...complexComponents].reduce((entries, pathname) => {
-    //     let basename = path.basename(pathname, '.vue');
-    //     entries[basename] = path.resolve(this.componentDir, pathname);
-    //     return entries;
-    // }, {});
+    return entries
   }
 
   async initConfig () {
     let entries = await this.getEntries()
-    this.config = config({
-      entry: entries,
-      outputPath: this.outputDir,
-      mode: this.mode,
-      context: this.dir,
-      asset: this.asset,
-      ignore: this.ignore
-    })
+
+    let options = Object.assign(
+      {
+        entry: entries,
+        outputPath: this.outputDir,
+        context: this.dir
+      },
+      this.options
+    )
+
+    this.config = config(options)
   }
 
   async initDev () {
@@ -129,7 +115,7 @@ module.exports = class WebpackBuilder {
   }
 
   async initWatcher () {
-    this.watcher = chokidar.watch(this.componentDir)
+    let entryWatcher = chokidar.watch(this.componentDir)
     let cb = async pathname => {
       if (this.isOnInited) {
         return
@@ -139,27 +125,6 @@ module.exports = class WebpackBuilder {
         return
       }
 
-      // let basename = path.basename(pathname)
-      // // 非入口文件的增减则不做任何处理
-      // if (!/^mip-[\w-]+\.(vue|js)$/.test(basename)) {
-      //   return
-      // }
-
-      // if (
-      //   path.resolve(
-      //     projectPath.componentDir(this.dir),
-      //     path.basename(basename, path.extname(basename)),
-      //     basename
-      //   ) !== path.resolve(pathname)
-      // ) {
-      //   return
-      // }
-
-      // let possibleComponents = projectPath.possibleComponents(this.componentDir, basename.slice(-4));
-      // if (possibleComponents.indexOf(pathname) < 0) {
-      //     return;
-      // }
-
       try {
         await this.initDev()
       } catch (e) {
@@ -168,8 +133,24 @@ module.exports = class WebpackBuilder {
       }
     }
 
-    this.watcher.on('ready', () => {
-      this.watcher.on('add', cb).on('unlink', cb)
+    entryWatcher.on('ready', () => {
+      entryWatcher.on('add', cb).on('unlink', cb)
+    })
+
+    if (this.ignore && /(^|,)whitelist(,|$)/.test(this.ignore)) {
+      return
+    }
+
+    let packageWatcher = chokidar.watch(this.packageJsonPathname)
+    packageWatcher.on('ready', () => {
+      packageWatcher.on('change', async () => {
+        let reporter = await validator.whitelist(this.dir)
+        if (reporter.errors.length) {
+          cli.error(reporter.errors[0].message)
+          // 暂时把白名单校验过程改成非中断式的
+          // process.exit(1)
+        }
+      })
     })
   }
 }

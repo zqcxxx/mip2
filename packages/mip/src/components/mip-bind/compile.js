@@ -1,6 +1,6 @@
 /**
  * @file compile.js
- * @author huanghuiquan (huanghuiquan@baidu.com)
+ * @author qiusiqi (qiusiqi@baidu.com)
  */
 
 import Watcher from './watcher'
@@ -12,100 +12,118 @@ let ATTRS = /^(checked|selected|autofocus|controls|disabled|hidden|multiple|read
 
 class Compile {
   constructor () {
-    this._el = document.documentElement
+    this.el = document.documentElement
   }
 
-  start (data, win) {
+  start (data) {
+    if (!data || !util.objNotEmpty(data)) {
+      return
+    }
     this.data = data
-    this._compileElement(win.document.documentElement)
-    // this._fragment = this._cloneNode();
-    // this._compileElement(this._fragment);
-    // this._el.appendChild(this._fragment);
+    this.compileElement(this.el)
+    // this.fragment = this.cloneNode();
+    // this.compileElement(this.fragment);
+    // this.el.appendChild(this.fragment);
   }
 
-  _cloneNode () {
+  /* istanbul ignore next */
+  cloneNode () {
     let child
     let fragment = document.createDocumentFragment()
     /* eslint-disable */
-    while (child = this._el.firstChild) {
+    while (child = this.el.firstChild) {
     /* eslint-enable */
       fragment.appendChild(child)
     }
     return fragment
   }
 
-  _compileElement (el) {
-    let me = this
+  compileElement (el) {
     let nodes = el.childNodes;
-    [].slice.call(nodes).forEach(function (node) {
-      if (!me._isElementNode(node)) {
+    [].slice.call(nodes).forEach(node => {
+      if (!this.isElementNode(node)) {
         return
       }
-      me._compileAttributes(node)
+      this.compileAttributes(node)
       if (node.childNodes && node.childNodes.length) {
-        me._compileElement(node)
+        this.compileElement(node)
       }
     })
   }
 
-  _isDirective (attr) {
+  isDirective (attr) {
     return attr.indexOf('m-') === 0
   }
 
-  _isElementNode (node) {
+  isElementNode (node) {
     return node.nodeType === 1
   }
 
-  _compileAttributes (node) {
-    let me = this
+  compileAttributes (node) {
+    /* istanbul ignore if */
     if (!node) {
       return
     }
     let attrs = node.attributes;
-    [].slice.call(attrs).forEach(function (attr) {
-      if (!me._isDirective(attr.name)) {
+    [].slice.call(attrs).forEach(attr => {
+      if (!this.isDirective(attr.name)) {
         return
       }
-      me._compileDirective(node, attr, attr.value)
+      this.compileDirective(node, attr, attr.value)
     })
   }
 
-  _compileDirective (node, directive, expression) {
+  /*
+   * compile directive that meet spec: m-text/m-bind
+   * @param {DOM.ELEMENT} node node
+   * @param {string} directive m-xx directive
+   * @param {string} exp expression to calculate value that needs to be bound
+   */
+  compileDirective (node, directive, expression) {
     let me = this
     let fnName = directive.name.slice(2)
     let attrName = directive.name
     let data
+    let shouldRm
 
-    if (/^bind:/.test(fnName)) {
+    // if is m-bind directive, check if binding class/style
+    // compile these two spectially
+    if (/^bind:.*/.test(fnName)) {
       let attr = fnName.slice(5)
       if (attr === 'class' || attr === 'style') {
         let attrKey = attr.charAt(0).toUpperCase() + attr.slice(1)
         try {
-          let fn = this.getWithResult(expression)
-          data = util['parse' + attrKey](fn.call(this.data))
+          let res = util.getter(this, expression)
+          data = util['parse' + attrKey](res.value)
+          shouldRm = res.hadReadAll
         } catch (e) {
+          // istanbul ignore next
           data = {}
         }
         expression = `${attrKey}:${expression}`
       }
       fnName = 'bind'
     }
-    !data && (data = me._getMVal(node, attrName, expression))
+    !data && (data = me.getMVal(node, attrName, expression))
     if (typeof data !== 'undefined') {
-      me[fnName] && me[fnName](node, attrName, data)
+      me[fnName] && me[fnName](node, attrName, data, shouldRm)
     }
 
-    this._listenerFormElement(node, directive, expression)
+    this.listenerFormElement(node, directive, expression)
     /* eslint-disable */
     new Watcher(node, me.data, attrName, expression, function (dir, newVal) {
-      if (typeof me[fnName] === 'function') {
-        me[fnName](node, dir, newVal)
-      }
+      me[fnName] && me[fnName](node, dir, newVal)
     })
     /* eslint-enable */
   }
 
-  _listenerFormElement (node, directive, expression) {
+  /*
+   * add eventlistener of form element
+   * @param {DOM.ELEMENT} node node
+   * @param {string} directive m-xx directive
+   * @param {string} exp expression to calculate value that needs to be bound
+   */
+  listenerFormElement (node, directive, expression) {
     if (TAGNAMES.test(node.tagName)) {
       let attr = directive.name.split(':')
       attr = attr.length > 1 ? attr[1] : ''
@@ -113,43 +131,53 @@ class Compile {
         return
       }
       let handle = function (e) {
-        let fn = this.setWithResult(expression, e.target.value)
-        fn.call(this.data)
+        util.setter(this, expression, e.target.value)
       }
       node.addEventListener('input', handle.bind(this))
     }
   }
 
+  /*
+   * directive m-text
+   * params {NODE} node DOM NODE
+   * params {string} newVal value to set as node.textContent
+   */
   text (node, directive, newVal) {
     node.textContent = newVal
   }
 
-  bind (node, directive, newVal) {
+  /*
+   * directive m-bind
+   * params {NODE} node DOM NODE
+   * params {string} directive directive
+   * params {string} newVal value to bind
+   * params {boolean} shouldRm tell if should remove directive
+   */
+  bind (node, directive, newVal, shouldRm) {
     let reg = /bind:(.*)/
     let result = reg.exec(directive)
-    if (!result.length) {
+    if (!result) {
       return
     }
     let attr = result[1]
+    /* istanbul ignore if */
     if (attr !== 'disabled' && node.disabled) {
       Object.assign(window.m, this.origin)
       return
     }
     if (attr === 'class') {
       if (util.objNotEmpty(newVal)) {
-        for (let k of Object.keys(newVal)) {
-          node.classList.toggle(k, newVal[k])
-        }
-        node.removeAttribute(directive)
+        Object.keys(newVal).forEach(k => node.classList.toggle(k, newVal[k]))
+        shouldRm && node.removeAttribute(directive)
       }
     } else if (attr === 'style') {
       if (util.objNotEmpty(newVal)) {
         let staticStyle = util.styleToObject(node.getAttribute(attr) || '')
-        for (let styleAttr of Object.keys(newVal)) {
+        Object.keys(newVal).forEach(styleAttr => {
           staticStyle[styleAttr] = newVal[styleAttr]
-        }
+        })
         node.setAttribute(attr, util.objectToStyle(staticStyle))
-        node.removeAttribute(directive)
+        shouldRm && node.removeAttribute(directive)
       }
     } else {
       if (typeof newVal === 'object') {
@@ -166,34 +194,31 @@ class Compile {
     }
   }
 
-  upadteData (data) {
+  updateData (data) {
     this.origin = data
   }
 
-  _getMVal (node, attrName, exp) {
+  /*
+   * to get value
+   * @param {DOM.ELEMENT} node node
+   * @param {string} attrName attribute
+   * @param {string} exp expression to calculate value that needs to be bound
+   */
+  getMVal (node, attrName, exp) {
     if (!exp) {
       return
     }
     let value
     try {
-      let fn = this.getWithResult(exp)
-      value = fn.call(this.data)
-      value !== '' && node.removeAttribute(attrName)
+      value = util.getter(this, exp).value
+      if (value !== '' && typeof value !== 'undefined') {
+        node.removeAttribute(attrName)
+      }
     } catch (e) {
       // console.error(e)
     }
     return value
   }
-
-  /* eslint-disable */
-  getWithResult (exp) {
-    return new Function((`with(this){try {return ${exp}} catch(e) {throw e}}`))
-  }
-
-  setWithResult (exp, value) {
-    return new Function((`with(this){try {${exp} = "${value}"} catch (e) {throw e}}`))
-  }
-  /* eslint-enable */
 }
 
 export default Compile

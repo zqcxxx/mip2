@@ -3,83 +3,109 @@
  * @author sfe-sy (sfe-sy@baidu.com)
  */
 
-/* global Attr */
-
-import {camelize, hyphenate} from './helpers'
+import {camelize, hyphenate, isArray, isFunction} from './helpers'
 import jsonParse from '../../util/json-parse'
 
-// Number and Boolean props are treated as strings
-// We should convert it so props will behave as intended
-// Conversion can be overwritted by prop validation (https://vuejs.org/v2/guide/components-props.html#Prop-Validation)
-export function convertAttributeValue (value, overrideType, attr, element) {
-  let propsValue = `${value}`
-  let isBoolean = ['true', 'false'].indexOf(value) > -1
-  let valueParsed = parseFloat(propsValue, 10)
-  let isNumber = !isNaN(valueParsed) &&
-    isFinite(propsValue) &&
-    !propsValue.match(/^0+[^.]\d*$/g)
-
-  if (overrideType && overrideType !== Boolean) {
-    // 只有组件在 props 中指定了需要 Object/Array 类型，才进行 JSON.parse 处理，否则按照 props 给定的 type 进行处理
-    if (overrideType === Object || overrideType === Array) {
-      try {
-        propsValue = jsonParse(propsValue)
-      } catch (e) {
-        console.warn(element, attr.name || '', 'attribute content should be a valid JSON string!')
-      }
-
-      // hide the data attribute
-      element && element.removeAttribute(attr.name)
-    } else {
-      propsValue = overrideType(value)
-    }
-  } else if (isBoolean || overrideType === Boolean) {
-    propsValue = propsValue === 'true'
-  } else if (isNumber) {
-    propsValue = valueParsed
+/**
+ * 从 vue 组件定义的 prop 中获取类型，如果没有定义类型，默认返回 String
+ * @param {Object|Function} prop prop 规则定义
+ * @return {Function} 数据类型
+ * @see https://vuejs.org/v2/guide/components-props.html#Prop-Casing-camelCase-vs-kebab-case
+ */
+function getPropType (prop) {
+  if (isFunction(prop)) {
+    return prop
   }
 
-  return propsValue
+  if (isArray(prop)) {
+    return prop[0]
+  }
+
+  if (prop && typeof prop === 'object' && prop.type) {
+    return isArray(prop.type) ? prop.type[0] : prop.type
+  }
+
+  return String
 }
 
-function extractProps (collection, props) {
-  if (collection && collection.length) {
-    collection.forEach(prop => {
-      let camelCaseProp = camelize(prop)
-      props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp)
-    })
-  } else if (collection && typeof collection === 'object') {
-    for (let prop in collection) {
-      let camelCaseProp = camelize(prop)
-      props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp)
+/**
+ * 根据 component props 指定类型对 attribute 进行数据类型转换
+ *
+ * @param {string} value attribute value
+ * @param {Function} type 基本数据类型 String/Number/Boolean/Array/Object
+ */
+export function convertAttributeValue (value, type) {
+  if (type === Boolean) {
+    return value !== 'false'
+  }
 
-      if (collection[camelCaseProp] && collection[camelCaseProp].type) {
-        props.types[prop] = [].concat(collection[camelCaseProp].type)[0]
-      } else if (collection[camelCaseProp]) {
-        props.types[prop] = collection[camelCaseProp]
+  if (type === Number) {
+    return parseFloat(value, 10)
+  }
+
+  if (type === String) {
+    return value
+  }
+
+  if (type === Array || type === Object) {
+    try {
+      return jsonParse(value)
+    } catch (e) {
+      console.warn(value + ' attribute content should be a valid JSON string!')
+    }
+  }
+
+  return value
+}
+
+/**
+ * 解析 vue 组件的 props
+ *
+ * @see https://vuejs.org/v2/guide/components-props.html#Prop-Casing-camelCase-vs-kebab-case
+ * @param {Object} component definition
+ * @param {Object} props extract props
+ */
+function extractProps (def, propTypes) {
+  if (isArray(def.props)) {
+    def.props.forEach(prop => {
+      let camelizeName = camelize(prop)
+      if (!propTypes[camelizeName]) {
+        propTypes[camelizeName] = getPropType(def.props[prop])
+      }
+    })
+  } else if (typeof def.props === 'object') {
+    for (let prop in def.props) {
+      let camelizeName = camelize(prop)
+      if (!propTypes[camelizeName]) {
+        propTypes[camelizeName] = getPropType(def.props[prop])
       }
     }
   }
+
+  if (def.extends && def.extends.props) {
+    extractProps(def.extends, propTypes)
+  }
+
+  if (def.mixins) {
+    def.mixins.forEach(mixin => extractProps(mixin, propTypes))
+  }
+
+  return propTypes
 }
 
 // Extract props from component definition, no matter if it's array or object
-export function getProps (componentDefinition = {}) {
+export function getProps (def = {}) {
   let props = {
     camelCase: [],
     hyphenate: [],
     types: {}
   }
 
-  if (componentDefinition.mixins) {
-    componentDefinition.mixins.forEach(mixin => extractProps(mixin.props, props))
-  }
-  if (componentDefinition.extends && componentDefinition.extends.props) {
-    let parentProps = componentDefinition.extends.props
-    extractProps(parentProps, props)
-  }
+  let propTypes = extractProps(def, {})
 
-  extractProps(componentDefinition.props, props)
-  props.camelCase.forEach(prop => props.hyphenate.push(hyphenate(prop)))
+  props.camelCase = Object.keys(propTypes)
+  props.hyphenate = Object.keys(propTypes).map(key => hyphenate(key))
+  props.types = propTypes
 
   return props
 }
@@ -92,15 +118,14 @@ export function reactiveProps (element, props) {
   props.camelCase.forEach((name, index) => {
     Object.defineProperty(element, name, {
       get () {
-        return this.vm[name]
+        if (element.customElement && element.customElement.vm) {
+          return element.customElement.vm[name]
+        }
       },
       set (value) {
-        if ((typeof value === 'object' || typeof value === 'function') && this.vm) {
-          let propName = props.camelCase[index]
-          this.vm[propName] = value
-        } else {
-          let type = props.types[props.camelCase[index]]
-          this.setAttribute(props.hyphenate[index], convertAttributeValue(value, type, {name}, element))
+        let vm = element.customElement && element.customElement.vm
+        if (vm) {
+          vm[name] = value
         }
       }
     })
@@ -125,18 +150,16 @@ export function getPropsData (element, componentDefinition, props) {
     propsData = Object.assign({}, propsData, scriptData)
   }
 
+  // 从 dom 上获取 props data
   props.hyphenate.forEach((name, index) => {
     let propCamelCase = props.camelCase[index]
-    let type = null
-    let propValue = element.attributes[name] || element[propCamelCase] || propsData[name]
+    let attrValue = element.getAttribute(name)
 
-    if (props.types[propCamelCase]) {
-      type = props.types[propCamelCase]
+    if (attrValue !== null) {
+      propsData[propCamelCase] = convertAttributeValue(attrValue, props.types[propCamelCase])
+    } else if (propCamelCase in element) {
+      propsData[propCamelCase] = element[propCamelCase]
     }
-
-    propsData[propCamelCase] = propValue instanceof Attr
-      ? convertAttributeValue(propValue.value, type, propValue, element)
-      : propValue
   })
 
   return propsData

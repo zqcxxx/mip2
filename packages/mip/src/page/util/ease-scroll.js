@@ -1,6 +1,7 @@
 import {raf} from './feature-detect'
+import viewport from '../../viewport'
 
-export function scrollTo (height, { duration = 500, scroller = window, scrollTop = 0 } = {}) {
+export function scrollTo (height, { duration = 500, scrollTop = 0 } = {}) {
   let top = height
 
   if (top === scrollTop) {
@@ -20,15 +21,15 @@ export function scrollTo (height, { duration = 500, scroller = window, scrollTop
         if ((sign && toScroll >= top) ||
           (!sign && toScroll <= top)
         ) {
-          scroll(top, scroller)
+          scroll(top)
           return false
         }
 
-        scroll(toScroll, scroller)
+        scroll(toScroll)
         return true
       },
       () => {
-        scroll(top, scroller)
+        scroll(top)
         resolve()
       }
     )
@@ -53,14 +54,15 @@ function transition (duration, step, callback) {
 
 function bezier (t, b, c, d) {
   return 1.0042954579734844 * Math.exp(
-      -6.4041738958415664 * Math.exp(-7.2908241330981340 * t / d)
+    -6.4041738958415664 * Math.exp(-7.2908241330981340 * t / d)
   ) * c + b
 }
 
-function scroll (top, scroller = window) {
-  if (scroller === window) {
-    window.scrollTo(0, top)
-  } else {
-    scroller.scrollTop = top
-  }
+function scroll (top) {
+  viewport.setScrollTop(top)
+  // if (scrollingFunction) {
+  //   scrollingFunction.call()
+  // } else {
+  //   window.scrollTo(0, top)
+  // }
 }

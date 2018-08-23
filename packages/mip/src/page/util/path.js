@@ -69,16 +69,13 @@ export function getLocation () {
   return window.location.href
 }
 
-// http://www.hello-world.com/mip => //www-hello--world-com.mipcdn.com/c/www.hello-world.com/mip
-export function getCDNPath (path) {
-  if (path.indexOf('mipcdn.com') !== -1 || path.indexOf('http') !== 0) {
-    return path
-  }
-
-  // http://www.hello-world.com => //www-hello--world-com.mipcdn.com
-  let tmpPath = path.replace(/^http(s?):\/\//, '')
-  let prefix = '//' + tmpPath.replace(/\/.+$/, '').replace(/-/g, '--').replace(/\./g, '-') + '.mipcdn.com'
-  let https = /^https:\/\//.test(path)
-
-  return `${prefix}/c${https ? '/s' : ''}/${tmpPath}`
+/**
+ * clean pageId
+ *
+ * @param {string} pageId pageId
+ * @return {string} cleaned pageId
+ */
+export function getCleanPageId (pageId) {
+  let hashReg = /#.*$/
+  return pageId && pageId.replace(hashReg, '')
 }

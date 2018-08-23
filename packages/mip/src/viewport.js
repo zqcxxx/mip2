@@ -6,6 +6,7 @@
 import EventEmitter from './util/event-emitter'
 import rect from './util/dom/rect'
 import fn from './util/fn'
+import platform from './util/platform'
 // import fixedElement from './fixed-element'
 
 // Native objects.
@@ -38,11 +39,18 @@ let scrollHandle = function (event) {
 
 /**
  * 窗口改变事件回调
+ * https://stackoverflow.com/questions/8898412/iphone-ipad-triggering-unexpected-resize-events
  *
  * @param {Object} event 事件对象
  */
+let savedWindowWidth = win.innerWidth || docElem.clientWidth
+let currentWindowWidth
 let resizeEvent = fn.throttle(function (event) {
-  this.trigger('resize', event)
+  currentWindowWidth = this.getWidth()
+  if (currentWindowWidth !== savedWindowWidth) {
+    this.trigger('resize', event)
+    savedWindowWidth = currentWindowWidth
+  }
 }, 200)
 
 /**
@@ -50,45 +58,17 @@ let resizeEvent = fn.throttle(function (event) {
  * provide some additional methods.
  */
 let viewport = {
-
   /**
    * Initialize the viewport
    *
    * @return {Viewport}
    */
   init () {
-    this.scroller = win
-    if (win.MIP.viewer.isIframed) {
-      this.scroller = this.reparentBody()
-    }
-    rect.setScroller(this.scroller)
-    // fixedElement.init()
+    this.scroller = platform.needSpecialScroll ? document.body : win
+
     this.scroller.addEventListener('scroll', scrollHandle.bind(this), false)
 
     win.addEventListener('resize', resizeEvent.bind(this))
-  },
-
-  /**
-   * create a <html> wrapper in iframe
-   * https://hackernoon.com/amp-ios-scrolling-and-position-fixed-redo-the-wrapper-approach-8874f0ee7876
-   *
-   * @return {HTMLElement} wrapper
-   */
-  reparentBody () {
-    const wrapper = document.createElement('html')
-    // Setup classes and styles
-    wrapper.className = document.documentElement.className
-    document.documentElement.className = 'mip-html-embeded'
-    wrapper.classList.add('mip-html-wrapper')
-    // Attach wrapper straight inside the document root
-    document.documentElement.appendChild(wrapper)
-    // Reparent the body
-    const body = document.body
-    wrapper.appendChild(body)
-    Object.defineProperty(document, 'body', {
-      get: () => body
-    })
-    return wrapper
   },
 
   /**
@@ -115,7 +95,7 @@ let viewport = {
    * @param {number} top The target scrollTop
    */
   setScrollTop (top) {
-    rect.setScrollTop(top)
+    rect.setScrollTop(top || 1)
   },
 
   /**

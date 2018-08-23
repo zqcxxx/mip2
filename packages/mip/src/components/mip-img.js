@@ -14,7 +14,6 @@ import viewer from '../viewer'
 const naboo = util.naboo
 
 let errHandle
-let Gesture = util.Gesture
 let css = util.css
 let rect = util.rect
 
@@ -42,7 +41,10 @@ let imgRatio = {
 function getPopupImgPos (imgWidth, imgHeight) {
   let width = viewport.getWidth()
   let height = Math.round(width * imgHeight / imgWidth)
-  let top = (viewport.getHeight() - height) / 2
+  let viewportH = viewport.getHeight()
+  let top = viewportH > height
+    ? (viewportH - height) / 2
+    : 0
   return {
     width: width,
     height: height,
@@ -74,71 +76,126 @@ function getImgOffset (img) {
   let imgOffset = rect.getElementOffset(img)
   return imgOffset
 }
-
+/**
+ * 获取所有图片的 src
+ * @return {Array.<HTMLElement>} 返回修改的元素集
+ */
+function getImgsSrc () {
+  return [...document.querySelectorAll('mip-img')].filter(value => value.hasAttribute('popup')).map(value => value.getAttribute('src'))
+}
+/**
+ * 找出当前视口下的图片
+ * @param  {HTMLElement} carouselWrapper carouselWrapper
+ * @return {HTMLElement} img
+ */
+function getCurrentImg (carouselWrapper) {
+  // 例如：'translate3d(-90px,0,0)'
+  let str = carouselWrapper.style.webkitTransform
+  let result = /translate3d\(-?([0-9]+)/i.exec(str)
+  let number = parseInt(result[1]) / viewport.getWidth()
+  return carouselWrapper.querySelectorAll('mip-img')[number]
+}
 // 创建弹层 dom
 function createPopup (element, img) {
-  let mipPopWrap = document.querySelector('.mip-img-popUp-wrapper')
-  if (!!mipPopWrap && mipPopWrap.getAttribute('data-name') === 'mip-img-popUp-name' &&
-        mipPopWrap.parentNode.tagName.toLowerCase() === 'body'
-  ) {
-    mipPopWrap.querySelector('img').setAttribute('src', img.src)
-    return mipPopWrap
-  }
+  // 获取图片数组
+  let imgsSrcArray = getImgsSrc()
+  let index = parseInt(element.getAttribute('index'), 10) || 0
 
   let popup = document.createElement('div')
+  css(popup, 'display', 'block')
 
-  // 阻止纵向滑动
-  new Gesture(popup, {
-    preventY: true
-  })
   popup.className = 'mip-img-popUp-wrapper'
   popup.setAttribute('data-name', 'mip-img-popUp-name')
 
   // 创建图片预览图层
   let popUpBg = document.createElement('div')
-  let innerImg = new Image()
+  // 创建多图预览 wrapper
+  let carouselWrapper = document.createElement('div')
+  // 计算 wrapper 窗口大小
+  let imgOffset = getImgOffset(img)
+  let popupImgPos = getPopupImgPos(imgOffset.width, imgOffset.height)
+  popupImgPos.top = 0
+  css(carouselWrapper, {
+    'position': 'absolute'
+  })
+  css(carouselWrapper, popupImgPos)
+  // 创建 mip-carousel
+  let carousel = document.createElement('mip-carousel')
 
+  carousel.setAttribute('layout', 'height-fixed')
+  carousel.setAttribute('index', index + 1)
+  carousel.setAttribute('width', popupImgPos.width)
+  carousel.setAttribute('height', popupImgPos.height)
+
+  for (let i = 0; i < imgsSrcArray.length; i++) {
+    let mipImg = document.createElement('mip-img')
+    mipImg.setAttribute('src', imgsSrcArray[i])
+    carousel.appendChild(mipImg)
+  }
   popUpBg.className = 'mip-img-popUp-bg'
-  innerImg.className = 'mip-img-popUp-innerimg'
-  innerImg.src = img.src
 
+  carouselWrapper.appendChild(carousel)
   popup.appendChild(popUpBg)
-  popup.appendChild(innerImg)
+  popup.appendChild(carouselWrapper)
   document.body.appendChild(popup)
 
   return popup
 }
 
 function bindPopup (element, img) {
-  let popup
-  let popupBg
-  let popupImg
   // 图片点击时展现图片
   img.addEventListener('click', function (event) {
     event.stopPropagation()
     // 图片未加载则不弹层
+    /* istanbul ignore if */
     if (img.width + img.naturalWidth === 0) {
       return
     }
 
-    popup = createPopup(element, img)
-    popupBg = popup.querySelector('.mip-img-popUp-bg')
-    popupImg = popup.querySelector('img')
+    // Show page mask
+    window.MIP.viewer.page.togglePageMask(true, {
+      skipTransition: true,
+      extraClass: 'black'
+    })
+    let popup = createPopup(element, img)
+    let popupBg = popup.querySelector('.mip-img-popUp-bg')
+    let mipCarousel = popup.querySelector('mip-carousel')
+    let popupImg = new Image()
+    popupImg.setAttribute('src', img.src)
+    popup.appendChild(popupImg)
+
+    let imgOffset = getImgOffset(img)
 
     popup.addEventListener('click', imagePop, false)
 
     function imagePop () {
+      // Hide page mask
+      window.MIP.viewer.page.togglePageMask(false, {
+        skipTransition: true,
+        extraClass: 'black'
+      })
+      // 找出当前视口下的图片
+      let currentImg = getCurrentImg(popup.querySelector('.mip-carousel-wrapper'))
+      popupImg.setAttribute('src', currentImg.getAttribute('src'))
+      let previousPos = getImgOffset(img)
+      // 获取弹出图片滑动的距离，根据前面的设定，top大于0就不是长图，小于0才是滑动的距离
+      let currentImgPos = getImgOffset(currentImg)
+      currentImgPos.top < 0 && (previousPos.top -= currentImgPos.top)
+      currentImgPos.left < 0 && (previousPos.left -= currentImgPos.left)
+      css(popupImg, 'display', 'block')
+      css(mipCarousel, 'display', 'none')
       naboo.animate(popupBg, {
         opacity: 0
       }).start()
-      naboo.animate(popupImg, getImgOffset(img)).start(function () {
+
+      naboo.animate(popup, {'display': 'none'})
+      naboo.animate(popupImg, previousPos).start(() => {
         css(img, 'visibility', 'visible')
         css(popup, 'display', 'none')
+        popup.removeEventListener('click', imagePop, false)
+        popup.remove()
       })
-      popup.removeEventListener('click', imagePop, false)
     }
-
-    let imgOffset = getImgOffset(img)
 
     let onResize = function () {
       imgOffset = getImgOffset(img)
@@ -148,10 +205,14 @@ function bindPopup (element, img) {
     window.addEventListener('resize', onResize)
 
     css(popupImg, imgOffset)
+    css(mipCarousel, getPopupImgPos(imgOffset.width, imgOffset.height))
+    css(mipCarousel, 'display', 'none')
     css(popupBg, 'opacity', 1)
-    css(popup, 'display', 'block')
 
-    naboo.animate(popupImg, getPopupImgPos(imgOffset.width, imgOffset.height)).start()
+    naboo.animate(popupImg, getPopupImgPos(imgOffset.width, imgOffset.height)).start(() => {
+      css(popupImg, 'display', 'none')
+      css(mipCarousel, 'display', 'block')
+    })
     css(img, 'visibility', 'hidden')
     css(img.parentNode, 'zIndex', 'inherit')
   }, false)
@@ -177,6 +238,7 @@ function bindLoad (element, img, mipEle) {
  * @param {HTMLElement} img image element
  */
 function errorHandle (img) {
+  /* istanbul ignore if */
   if (!viewer.isIframed) {
     return
   }
@@ -260,14 +322,12 @@ class MipImg extends CustomElement {
   }
 
   firstInviewCallback () {
-    let ele = this.element.querySelector('img')
-    if (ele) {
-      return
-    }
-
-    ele = this.element
+    let ele = this.element
     let img = new Image()
-
+    if (ele.hasAttribute('popup')) {
+      let allMipImg = [...document.querySelectorAll('mip-img')].filter(value => value.hasAttribute('popup'))
+      ele.setAttribute('index', allMipImg.indexOf(ele))
+    }
     if (this.placeholder) {
       img.classList.add('mip-img-loading')
     }

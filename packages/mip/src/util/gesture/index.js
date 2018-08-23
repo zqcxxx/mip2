@@ -27,14 +27,27 @@ class Gesture extends EventEmitter {
     super()
 
     /**
+     * Default options.
+     *
+     * @private
+     * @type {Object}
+     */
+    this._opt = {
+      preventDefault: false,
+      stopPropagation: false,
+      preventX: true,
+      preventY: false
+    }
+
+    opt && (this._opt = fn.extend({}, this._opt, opt))
+
+    /**
      * The events' context.
      *
      * @private
      * @type {?Object}
      */
     this.__eventContext = this._element = element
-
-    opt && (this._opt = fn.extend({}, this._opt, opt))
 
     /**
      * Touch handler.
@@ -53,19 +66,6 @@ class Gesture extends EventEmitter {
      * @type {Object}
      */
     this._recognizers = {}
-
-    /**
-     * Default options.
-     *
-     * @private
-     * @type {Object}
-     */
-    this._opt = {
-      preventDefault: false,
-      stopPropagation: false,
-      preventX: true,
-      preventY: false
-    }
   }
 
   /**
@@ -154,6 +154,13 @@ function touchHandler (event) {
   let opt = this._opt
   opt.preventDefault && event.preventDefault()
   opt.stopPropagation && event.stopPropagation()
+
+  // 如果 touchstart 没有被触发(可能被子元素的 touchstart 回调触发了 stopPropagation)，
+  // 那么后续的手势将取消计算
+  if (event.type !== 'touchstart' && !dataProcessor.startTime) {
+    return
+  }
+
   let data = dataProcessor.process(event, opt.preventX, opt.preventY)
   this._recognize(data)
   this.trigger(event.type, event, data)

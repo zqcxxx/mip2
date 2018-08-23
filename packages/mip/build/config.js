@@ -1,10 +1,15 @@
+/**
+ * @file rollup config file
+ * @author mj(zoumiaojiang@gmail.com)
+ */
+
 const path = require('path')
-const buble = require('rollup-plugin-buble')
+const babel = require('rollup-plugin-babel')
 const alias = require('rollup-plugin-alias')
 const replace = require('rollup-plugin-replace')
-const less = require('rollup-plugin-less')
 const node = require('rollup-plugin-node-resolve')
 const cjs = require('rollup-plugin-commonjs')
+const postcss = require('rollup-plugin-postcss2')
 const version = process.env.VERSION || require('../package.json').version
 
 const aliases = require('./alias')
@@ -22,7 +27,8 @@ const builds = {
     entry: resolve('mip'),
     dest: resolve('dist/mip.js'),
     format: 'umd',
-    env: 'production'
+    env: 'production',
+    intro: 'window._mipStartTiming=Date.now();'
   }
 }
 
@@ -35,22 +41,31 @@ function genConfig (name) {
       replace({
         __VERSION__: version
       }),
-      alias(Object.assign({}, aliases, opts.alias)),
-      less({
-        output: resolve('dist/mip.css')
+      postcss({
+        extract: resolve('dist/mip.css'),
+        inject: false,
+        minimize: {
+          safe: true
+        },
+        extensions: ['.less', '.css'],
+        config: true
       }),
+      alias(Object.assign({}, aliases, opts.alias)),
       node(),
       cjs(
         {
           include: 'node_modules/**'
         }
       ),
-      buble()
+      babel({
+        plugins: ['external-helpers']
+      })
     ].concat(opts.plugins || []),
     output: {
       file: opts.dest,
       format: opts.format,
       banner: opts.banner,
+      intro: opts.intro,
       name: opts.moduleName || 'MIP'
     }
   }

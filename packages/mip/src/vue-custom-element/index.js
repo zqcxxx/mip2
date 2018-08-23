@@ -13,12 +13,6 @@ function install (Vue) {
   Vue.config.ignoredElements = [/^mip-/i]
 
   Vue.customElement = (tag, componentDefinition) => {
-    // 如果不设置 template 和 render 函数，默认设置 render 函数返回 null，避免 warning
-    let {template, render} = componentDefinition
-    if (!template && typeof render !== 'function') {
-      componentDefinition.render = () => null
-    }
-
     const props = getProps(componentDefinition)
     function callLifeCycle (ctx, name) {
       if (typeof componentDefinition[name] === 'function') {
@@ -37,9 +31,8 @@ function install (Vue) {
 
       _build () {
         let vueInstance = this.vueInstance = createVueInstance(
-          this.element, {
-            Vue
-          },
+          this.element,
+          Vue,
           componentDefinition,
           props
         )
@@ -54,11 +47,11 @@ function install (Vue) {
       }
 
       connectedCallback () {
-        callLifeCycle(this.vm, 'connectedCallback', this.element)
+        callLifeCycle(this, 'connectedCallback', this.element)
       }
 
       disconnectedCallback () {
-        callLifeCycle(this.vm, 'disconnectedCallback', this.element)
+        callLifeCycle(this, 'disconnectedCallback', this.element)
       }
 
       firstInviewCallback () {
@@ -73,7 +66,7 @@ function install (Vue) {
         if (this.vueInstance) {
           const nameCamelCase = camelize(name)
           const type = this.props.types[nameCamelCase]
-          this.vueInstance[nameCamelCase] = convertAttributeValue(value, type, {name}, this.element)
+          this.vueInstance[nameCamelCase] = convertAttributeValue(value, type)
         }
       }
 

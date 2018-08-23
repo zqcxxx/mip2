@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 /**
  * @file Hash Function. Support hash get function
  * @author zhangzhiqiang(zhiqiangzhang37@163.com)
@@ -6,17 +7,18 @@
 /* global top screen location */
 
 import event from './util/dom/event'
-import css from './util/dom/css'
 import Gesture from './util/gesture/index'
 import platform from './util/platform'
-import viewport from './viewport'
 import EventAction from './util/event-action'
 import EventEmitter from './util/event-emitter'
 import fn from './util/fn'
+import {makeCacheUrl, parseCacheUrl} from './util'
+import {supportsPassive} from './page/util/feature-detect'
+import {resolvePath} from './page/util/path'
+import viewport from './viewport'
 import Page from './page/index'
-import {MESSAGE_ROUTER_PUSH, MESSAGE_ROUTER_REPLACE} from './page/const/index'
+import {MESSAGE_PAGE_RESIZE, CUSTOM_EVENT_SHOW_PAGE, CUSTOM_EVENT_HIDE_PAGE} from './page/const'
 import Messager from './messager'
-import {supportsPassive, isPortrait} from './page/util/feature-detect'
 import fixedElement from './fixed-element'
 
 /**
@@ -60,35 +62,22 @@ let viewer = {
     // handle preregistered  extensions
     this.handlePreregisteredExtensions()
 
-    // add normal scroll class to body. except ios in iframe.
-    // Patch for ios+iframe is default in mip.css
-    // if (!platform.needSpecialScroll) {
-    //   document.documentElement.classList.add('mip-i-android-scroll')
-    //   document.body.classList.add('mip-i-android-scroll')
-    // }
-
-    if (this.isIframed) {
-      this.patchForIframe()
-      this._viewportScroll()
-      if (platform.isIos()) {
-        this._lockBodyScroll()
-      }
-    }
-
     this.page = new Page()
 
+    // solve many browser quirks...
+    this.handleBrowserQuirks()
+
+    // start rendering page
     this.page.start()
 
+    // notify internal performance module
+    this.isShow = true
+    this._showTiming = Date.now()
+    this.trigger('show', this._showTiming)
+
+    // move <mip-fixed> to second <body>. see fixed-element.js
     this.fixedElement = fixedElement
     fixedElement.init()
-
-    // Only send at first time
-    if (win.MIP.MIP_ROOT_PAGE) {
-      this.sendMessage('mippageload', {
-        time: Date.now(),
-        title: encodeURIComponent(document.title)
-      })
-    }
 
     // proxy <a mip-link>
     this._proxyLink(this.page)
@@ -104,39 +93,19 @@ let viewer = {
   isIframed: win !== top,
 
   /**
-   * Patch for iframe
-   */
-  patchForIframe () {
-    // Fix iphone 5s UC and ios 9 safari bug.
-    // While the back button is clicked,
-    // the cached page has some problems.
-    // So we are forced to load the page in iphone 5s UC
-    // and iOS 9 safari.
-    let iosVersion = platform.getOsVersion()
-    iosVersion = iosVersion ? iosVersion.split('.')[0] : ''
-    let needBackReload = (iosVersion === '8' && platform.isUc() && screen.width === 320) ||
-            (iosVersion === '9' && platform.isSafari())
-    if (needBackReload) {
-      window.addEventListener('pageshow', e => {
-        if (e.persisted) {
-          document.body.style.display = 'none'
-          location.reload()
-        }
-      })
-    }
-  },
-
-  /**
    * Show contents of page. The contents will not be displayed until the components are registered.
    */
   show () {
-    css(document.body, {
-      opacity: 1,
-      animation: 'none'
-    })
-    this.isShow = true
-    this._showTiming = Date.now()
-    this.trigger('show', this._showTiming)
+    // Job complete! Hide the loading spinner
+    document.body.setAttribute('mip-ready', '')
+
+    // notify SF hide its loading
+    if (win.MIP.viewer.page.isRootPage) {
+      this.sendMessage('mippageload', {
+        time: Date.now(),
+        title: encodeURIComponent(document.title)
+      })
+    }
   },
 
   /**
@@ -170,7 +139,6 @@ let viewer = {
     let eventAction = this.eventAction = new EventAction()
     if (hasTouch) {
       // In mobile phone, bind Gesture-tap which listen to touchstart/touchend event
-      // istanbul ignore next
       this._gesture.on('tap', event => {
         eventAction.execute('tap', event.target, event)
       })
@@ -185,7 +153,6 @@ let viewer = {
       eventAction.execute('click', event.target, event)
     }, false)
 
-    // istanbul ignore next
     event.delegate(document, 'input', 'change', event => {
       eventAction.execute('change', event.target, event)
     })
@@ -212,9 +179,16 @@ let viewer = {
     }
   },
 
-  open (to, {isMipLink = true, replace = false, state} = {}) {
-    let {router, isRootPage} = this.page
-    let notifyRootPage = this.page.notifyRootPage.bind(this.page)
+  /**
+   *
+   * @param {string} to Target url
+   * @param {Object} options
+   * @param {boolean} options.isMipLink Whether targetUrl is a MIP page. If not, use `top.location.href`. Defaults to `true`
+   * @param {boolean} options.replace If true, use `history.replace` instead of `history.push`. Defaults to `false`
+   * @param {Object} options.state Target page info
+   * @param {Object} options.cacheFirst If true, use cached iframe when available
+   */
+  open (to, {isMipLink = true, replace = false, state, cacheFirst} = {}) {
     if (!state) {
       state = {click: undefined, title: undefined, defaultTitle: undefined}
     }
@@ -225,65 +199,64 @@ let viewer = {
     }
     let isHashInCurrentPage = hash && to.indexOf(window.location.origin + window.location.pathname) > -1
 
-    // invalid <a>, ignore it
+    // Invalid target, ignore it
     if (!to) {
       return
     }
 
-    /**
-     * we handle two scenario:
-     * 1. <mip-link>
-     * 2. anchor in same page, scroll to current hash with an ease transition
-     */
-    if (isMipLink || isHashInCurrentPage) {
-      // create target route
-      let targetRoute = {path: to}
-
-      // send statics message to BaiduResult page
-      let pushMessage = {
-        url: to,
-        state
-      }
-
-      this.sendMessage('pushState', pushMessage)
-
-      if (isMipLink) {
-        // show transition only in portrait mode
-        if (isPortrait()) {
-          router.rootPage.allowTransition = true
-        }
-
-        // reload page even if it's already existed
-        targetRoute.meta = {
-          reload: true,
-          header: {
-            title: pushMessage.state.title,
-            defaultTitle: pushMessage.state.defaultTitle
-          }
-        }
-      }
-
-      // handle <a mip-link replace> & hash
-      if (isHashInCurrentPage || replace) {
-        if (isRootPage) {
-          router.replace(targetRoute)
-        } else {
-          notifyRootPage({
-            type: MESSAGE_ROUTER_REPLACE,
-            data: {route: targetRoute}
-          })
-        }
-      } else if (isRootPage) {
-        router.push(targetRoute)
+    // Jump in top window directly
+    // 1. Cross origin and NOT in SF
+    // 2. Not MIP page and not only hash change
+    if ((this._isCrossOrigin(to) && window.MIP.standalone)) {
+      if (replace) {
+        window.top.location.replace(to)
       } else {
-        notifyRootPage({
-          type: MESSAGE_ROUTER_PUSH,
-          data: {route: targetRoute}
-        })
+        window.top.location.href = to
       }
+      return
+    }
+    if (!isMipLink && !isHashInCurrentPage) {
+      window.top.location.href = to
+      return
+    }
+
+    let completeUrl
+    if (/^\/\//.test(to)) {
+      completeUrl = location.protocol + to
+    } else if (to.charAt(0) === '/' || to.charAt(0) === '.') {
+      completeUrl = location.origin + resolvePath(to, location.pathname)
     } else {
-      // jump in top window directly
-      top.location.href = to
+      completeUrl = to
+    }
+    // Send statics message to BaiduResult page
+    let pushMessage = {
+      url: parseCacheUrl(completeUrl),
+      state
+    }
+    this.sendMessage(replace ? 'replaceState' : 'pushState', pushMessage)
+
+    // Create target route
+    let targetRoute = {
+      path: window.MIP.standalone ? to : makeCacheUrl(to)
+    }
+
+    if (isMipLink) {
+      // Reload page even if it's already existed
+      targetRoute.meta = {
+        reload: true,
+        cacheFirst,
+        header: {
+          title: pushMessage.state.title,
+          defaultTitle: pushMessage.state.defaultTitle
+        }
+      }
+    }
+
+    // Handle <a mip-link replace> & hash
+    if (isHashInCurrentPage || replace) {
+      this.page.replace(targetRoute, {allowTransition: true})
+    } else {
+      this.page.push(targetRoute, {allowTransition: true})
     }
   },
 
@@ -306,7 +279,7 @@ let viewer = {
    *
    * @private
    */
-  _viewportScroll () {
+  viewportScroll () {
     let self = this
     let dist = 0
     let direct = 0
@@ -352,7 +325,7 @@ let viewer = {
    *
    * @private
    */
-  _proxyLink (page = {}) {
+  _proxyLink () {
     let self = this
     let httpRegexp = /^http/
     let telRegexp = /^tel:/
@@ -372,6 +345,7 @@ let viewer = {
       let to = $a.href
       let isMipLink = $a.hasAttribute('mip-link') || $a.getAttribute('data-type') === 'mip'
       let replace = $a.hasAttribute('replace')
+      let cacheFirst = $a.hasAttribute('cache-first')
       let state = self._getMipLinkData.call($a)
 
       /**
@@ -386,7 +360,7 @@ let viewer = {
         return
       }
 
-      self.open(to, {isMipLink, replace, state})
+      self.open(to, {isMipLink, replace, state, cacheFirst})
 
       event.preventDefault()
     }, false)
@@ -408,25 +382,169 @@ let viewer = {
     }
   },
 
+  handleBrowserQuirks () {
+    // add normal scroll class to body. except ios in iframe.
+    // Patch for ios+iframe is default in mip.css
+    if (!platform.needSpecialScroll) {
+      document.documentElement.classList.add('mip-i-android-scroll')
+      document.body.classList.add('mip-i-android-scroll')
+    }
+
+    // prevent bouncy scroll in iOS 7 & 8
+    if (platform.isIos()) {
+      let iosVersion = platform.getOsVersion()
+      iosVersion = iosVersion ? iosVersion.split('.')[0] : ''
+      if (!(iosVersion === '8' || iosVersion === '7')) {
+        document.documentElement.classList.add('mip-i-ios-scroll')
+      }
+
+      if (!this.page.isRootPage) {
+        this.fixIOSPageFreeze()
+      }
+
+      if (this.isIframed) {
+        this.lockBodyScroll()
+
+        // While the back button is clicked,
+        // the cached page has some problems.
+        // So we are forced to load the page in below conditions:
+        // 1. IOS 8 + UC
+        // 2. IOS 9 & 10 + Safari
+        // 3. IOS 8 & 9 & 10 + UC & BaiduApp & Baidu
+        let needBackReload = (iosVersion === '8' && platform.isUc() && screen.width === 320) ||
+          ((iosVersion === '9' || iosVersion === '10') && platform.isSafari()) ||
+          ((iosVersion === '8' || iosVersion === '9' || iosVersion === '10') && (platform.isUc() || platform.isBaiduApp() || platform.isBaidu()))
+        if (needBackReload) {
+          window.addEventListener('pageshow', e => {
+            if (e.persisted) {
+              document.body.style.display = 'none'
+              location.reload()
+            }
+          })
+        }
+      }
+    }
+
+    /**
+     * trigger layout to solve a strange bug in Android Superframe,
+     * which will make page unscrollable
+     */
+    if (platform.isAndroid()) {
+      setTimeout(() => {
+        document.documentElement.classList.add('trigger-layout')
+        document.body.classList.add('trigger-layout')
+      })
+    }
+
+    if (this.isIframed) {
+      this.viewportScroll()
+    }
+
+    this.fixSoftKeyboard()
+  },
+
+  /**
+   * fix a iOS UC/Shoubai bug when hiding current iframe,
+   * which will cause the whole page freeze
+   *
+   * https://github.com/mipengine/mip2/issues/19
+   */
+  fixIOSPageFreeze () {
+    let $style = document.createElement('style')
+    let $head = document.head || document.getElementsByTagName('head')[0]
+    $style.setAttribute('mip-bouncy-scrolling', '')
+    $style.textContent = '* {-webkit-overflow-scrolling: auto!important;}'
+
+    if (!platform.isSafari() && !platform.isChrome()) {
+      window.addEventListener(CUSTOM_EVENT_SHOW_PAGE, (e) => {
+        try {
+          $head.removeChild($style)
+        } catch (e) {}
+      })
+      window.addEventListener(CUSTOM_EVENT_HIDE_PAGE, (e) => {
+        $head.appendChild($style)
+      })
+    }
+  },
+
+  /**
+   * fix soft keyboard bug
+   *
+   * https://github.com/mipengine/mip2/issues/38
+   */
+  fixSoftKeyboard () {
+    // reset iframe's height when input focus/blur
+    event.delegate(document, 'input', 'focus', event => {
+      this.page.notifyRootPage({
+        type: MESSAGE_PAGE_RESIZE
+      })
+    }, true)
+    event.delegate(document, 'input', 'blur', event => {
+      this.page.notifyRootPage({
+        type: MESSAGE_PAGE_RESIZE
+      })
+    }, true)
+  },
+
   /**
    * lock body scroll in iOS
    *
    * https://medium.com/jsdownunder/locking-body-scroll-for-all-devices-22def9615177
    * http://blog.christoffer.online/2015-06-10-six-things-i-learnt-about-ios-rubberband-overflow-scrolling/
    */
-  _lockBodyScroll () {
-    let wrapper = viewport.scroller
-    let viewportHeight = viewport.getHeight()
-
-    wrapper.addEventListener('touchstart', e => {
+  lockBodyScroll () {
+    viewport.on('scroll', () => {
       let scrollTop = viewport.getScrollTop()
-      let scrollHeight = viewport.getScrollHeight()
+      let totalScroll = viewport.getScrollHeight()
       if (scrollTop === 0) {
-        wrapper.scrollTop = 1
-      } else if (scrollHeight - scrollTop <= viewportHeight) {
-        wrapper.scrollTop = scrollTop - 1
+        viewport.setScrollTop(1)
+      } else if (scrollTop === totalScroll) {
+        viewport.setScrollTop(scrollTop - 1)
       }
     }, eventListenerOptions)
+
+    // scroll 1px
+    document.documentElement.classList.add('trigger-layout')
+    document.body.classList.add('trigger-layout')
+    viewport.setScrollTop(1)
+  },
+
+  /**
+   * Whether target url is a cross origin one
+   * @param {string} to targetUrl
+   */
+  _isCrossOrigin (to) {
+    let target = to
+
+    // Below 3 conditions are NOT cross origin
+    // 1. '/'
+    // 2. Absolute path ('/absolute/path')
+    // 3. Relative path ('./relative/path' or '../parent/path')
+    if (target.length === 1 ||
+      (target.charAt(0) === '/' && target.charAt(1) !== '/') ||
+      target.charAt(0) === '.') {
+      return false
+    }
+
+    // Check protocol
+    if (/^http(s?):\/\//i.test(target)) {
+      // Starts with 'http://' or 'https://'
+      if (!(new RegExp('^' + location.protocol, 'i')).test(target)) {
+        return true
+      }
+
+      target = target.replace(/^http(s?):\/\//i, '')
+    } else if (/^\/\//.test(target)) {
+      // Starts with '//'
+      target = target.substring(2, target.length)
+    }
+
+    let hostAndPort = target.split('/')[0]
+    if (location.host !== hostAndPort) {
+      return true
+    }
+
+    return false
   }
 }
 

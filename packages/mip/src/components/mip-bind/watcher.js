@@ -1,75 +1,177 @@
 /**
  * @file watcher.js
- * @author huanghuiquan (huanghuiquan@baidu.com)
+ * @author qiusiqi (qiusiqi@baidu.com)
  */
 
 import Deps from './deps'
 import * as util from './util'
 
+import {MAX_UPDATE_COUNT} from '../../vue/core/observer/scheduler'
+
+const queue = []
+let has = {}
+let circular = {}
+let flushing = false
+let index = 0
+let lock = false
+
+// Record watcher id, avoid add repeatly
+let uid = 0
+
 class Watcher {
+  /*
+   * @constructor
+   * params {NODE} node DOM NODE
+   * params {Object} data pageData
+   * params {string} dir directive
+   * params {string} exp expression
+   * params {Function} cb watcher callback
+   */
   constructor (node, data, dir, exp, cb) {
-    this._data = data
-    this._dir = dir
-    this._exp = exp
+    this.data = data
+    this.dir = dir
+    this.exp = exp
+    this.id = uid++
     let specPrefix
-    if ((specPrefix = exp.slice(0, 6)) === 'Class:' || specPrefix === 'Style:') {
-      this._specWatcher = specPrefix.slice(0, 5)
-      this._exp = exp = exp.slice(6)
+    if ((specPrefix = exp.slice(0, 6)) === 'Class:' ||
+      specPrefix === 'Style:' ||
+      specPrefix === 'Watch:'
+    ) {
+      this.specWatcher = specPrefix.slice(0, 5)
+      this.exp = exp = exp.slice(6)
     }
-    this._node = node
-    this._depIds = {}
-    if (typeof exp === 'function') {
-      this._getter = exp
-    } else {
-      let fn = this.getWithResult.bind(this, this._exp)
-      this._getter = fn.call(this._data)
-    }
-    this._cb = cb
-    this._value = this._get()
+    this.node = node
+    this.depIds = {}
+    let fn = util.getWithResult.bind(this, this.exp)
+    this.getter = fn.call(this.data)
+    this.cb = cb
+    this.value = this.get()
   }
 
-  getWithResult (exp) {
-    /* eslint-disable */
-    return new Function((`with(this){try {return ${exp}} catch(e) {}}`))
-    /* eslint-enable */
-  }
-
+  /*
+   * scheduler to update
+   */
   update () {
-    let newVal = this._get()
-    let oldVal = this._value
-    if (newVal !== oldVal) {
-      this._value = newVal
-      if (this._dir) {
-        this._cb.call(this._data, this._dir, newVal)
+    if (lock) {
+      const id = this.id
+      if (has[id] != null) {
+        return
+      }
+      has[id] = true
+
+      if (flushing) {
+        queue.push(this)
       } else {
-        this._cb.call(this._data, newVal)
+        let i = queue.length - 1
+        /* istanbul ignore next */
+        while (i > index && queue[i].id > id) {
+          i--
+        }
+        queue.splice(i + 1, 0, this)
+      }
+    } else {
+      this.run()
+    }
+  }
+
+  /*
+   * controller to update dom or call callbacks of watchers
+   */
+  run () {
+    let oldVal = this.value
+    let newVal = this.get(oldVal)
+    if (newVal !== oldVal) {
+      this.value = newVal
+      if (this.dir) {
+        this.cb.call(this.data, this.dir, newVal)
+      } else {
+        this.cb.call(this.data, newVal)
       }
     }
   }
 
-  _get () {
+  /*
+   * get new val for comparing
+   * @param {*} oldVal oldValue used to build new value
+   */
+  get (oldVal) {
     let value
     Deps.target = this
-    if (this._getter) {
-      value = this._getter.call(this._data, this._data)
-      this._specWatcher && (value = util['parse' + this._specWatcher](value))
+    // get new value
+    value = this.getter.call(this.data, this.data).value
+    // parse class/style with spectial parser
+    if (this.specWatcher && this.specWatcher !== 'Watch') {
+      value = util['parse' + this.specWatcher](value, oldVal)
     }
     Deps.target = null
     return value
   }
 
+  /*
+   * save dependencies
+   */
   addWatcher (dep) {
-    if (!this._depIds.hasOwnProperty(dep.id)) {
+    if (!this.depIds.hasOwnProperty(dep.id)) {
       dep.subs.push(this)
-      this._depIds[dep.id] = dep
+      this.depIds[dep.id] = dep
     }
-  }
-
-  teardown () {
-    Object.keys(this._depIds).forEach(key => {
-      this._depIds[key].subs = []
-    })
   }
 }
 
 export default Watcher
+
+/**
+ * Reset the scheduler's state.
+ */
+function resetState () {
+  index = queue.length = 0
+  has = {}
+  /* istanbul ignore if */
+  if (process.env.NODE_ENV !== 'production') {
+    circular = {}
+  }
+  flushing = false
+}
+
+/**
+ * Flush queues and run the watchers.
+ */
+function flushWatcherQueue () {
+  flushing = true
+  let watcher
+  let id
+
+  queue.sort((a, b) => a.id - b.id)
+
+  for (index = 0; index < queue.length; index++) {
+    watcher = queue[index]
+    id = watcher.id
+    has[id] = null
+    watcher.run()
+    // in dev build, check and stop circular updates.
+    if (process.env.NODE_ENV !== 'production') {
+      circular[id] = (circular[id] || 0) + 1
+      if (circular[id] > MAX_UPDATE_COUNT) {
+        console.error(
+          `[MIP warn]:You may have an infinite update loop in watcher with expression "${watcher.exp}"`
+        )
+        break
+      }
+    }
+  }
+
+  resetState()
+}
+
+export function locker (status) {
+  // avoid flushing again, watcher had queued
+  if (queue.length && !status && flushing) {
+    return
+  }
+  // set lock status
+  lock = status
+  // when unlock, do flushing
+  if (!status) {
+    flushWatcherQueue()
+  }
+}

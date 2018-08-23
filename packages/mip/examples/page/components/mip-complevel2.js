@@ -4,21 +4,22 @@
  */
 
 /* global MIP */
-
 MIP.registerVueCustomElement('mip-complevel2', {
-  template: `<div>
-      <p>{{userinfo.name}}</p>
-      <p v-if="loading">{{msg}}</p>
+  template: `<div class="mip-complevel2">
+      <h3>This is component mip-complevel2</h3>
+      <p v-if="userInfo.name">userInfo.name : {{userInfo.name}}</p>
+      <p v-if="msg">string 'msg' show if loading=true: <span v-if="loading">{{msg}}</span></p>
+      <p v-if="list && list.length">list:</p>
       <ul v-if="list && list.length">
         <li>{{list[0]}}</li>
         <li>{{list[1]}}</li>
         <li>{{list[2]}}</li>
       </ul>
-      <p>{{num}}</p>
+      <p v-if="num">num: {{num}}</p>
     </div>
   `,
   props: {
-    userinfo: {
+    userInfo: {
       default () {
         return {}
       },
@@ -35,17 +36,21 @@ MIP.registerVueCustomElement('mip-complevel2', {
     num: Number
   },
   mounted () {
-    // console.log(this.loading)
-    // console.log(this.userinfo)
-    // console.log(this.msg)
-    // console.log(typeof this.loading)
-    // console.log(this.list)
-    // console.log(this.num)
-  },
-  updated () {
-    // console.log(this.loading)
-    // console.log(typeof this.loading)
-  },
-  methods: {
+    MIP.watch('loading', function (newVal) {
+      console.log('watch loading ', newVal)
+    })
+    MIP.watch('a', function (newVal) {
+      MIP.setData({
+        loading: false
+        // a: +newVal + 1
+      })
+      console.log('watch a:', newVal, ',set {loading:', MIP.getData('loading'), '}')
+    })
+    // MIP.watch('loading', function (newVal) {
+    //   console.log('watch loading ', newVal)
+    // })
+    // MIP.watch('loading', function (newVal) {
+    //   console.log('watch loading ', newVal)
+    // }, {immediate: true})
   }
 })

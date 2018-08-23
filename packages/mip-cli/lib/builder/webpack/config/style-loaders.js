@@ -4,14 +4,14 @@
  */
 
 /* eslint-disable */
-const {resolveModule} = require('../../../utils/helper');
+// const {resolveModule} = require('../../../utils/helper');
 /* eslint-enable */
 
 const commonStyleLoaders = [
-  resolveModule('vue-style-loader'),
-  resolveModule('css-loader'),
+  require.resolve('vue-style-loader'),
+  require.resolve('css-loader'),
   {
-    loader: resolveModule('postcss-loader'),
+    loader: require.resolve('postcss-loader'),
     options: {
       ident: 'postcss',
       plugins: [
@@ -29,17 +29,17 @@ const commonStyleLoaders = [
 
 module.exports = [
   {
-    test: /\.styl(us)?$/,
-    use: [
-      ...commonStyleLoaders,
-      resolveModule('stylus-loader')
-    ]
-  },
-  {
     test: /\.less$/,
     use: [
       ...commonStyleLoaders,
-      resolveModule('less-loader')
+      require.resolve('less-loader')
+    ]
+  },
+  {
+    test: /\.styl(us)?$/,
+    use: [
+      ...commonStyleLoaders,
+      require.resolve('stylus-loader')
     ]
   },
   {

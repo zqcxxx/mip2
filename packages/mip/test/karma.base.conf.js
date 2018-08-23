@@ -3,11 +3,22 @@ const alias = require('../build/alias')
 const version = process.env.VERSION || require('../package.json').version
 
 const webpackConfig = {
+  mode: 'development',
   resolve: {
     alias
   },
   module: {
     rules: [{
+      test: /\.js$/,
+      use: {
+        loader: 'istanbul-instrumenter-loader',
+        options: {
+          esModules: true
+        }
+      },
+      enforce: 'post',
+      exclude: /node_modules|deps|test|src\/vue\/|\.spec\.js$/
+    }, {
       test: /\.(css|less)$/,
       use: [
         {
@@ -24,8 +35,7 @@ const webpackConfig = {
         },
         'less-loader'
       ]
-    },
-    {
+    }, {
       test: /\.(woff2?|eot|ttf|otf)(\?.*)?$/,
       loader: 'url-loader',
       options: {
@@ -43,18 +53,40 @@ const webpackConfig = {
   devtool: '#inline-source-map'
 }
 
+let browsers = ['Chrome']
+// trvis env
+if (process.env.TRAVIS) {
+  browsers = ['Chrome_travis_ci']
+}
+
 module.exports = {
   files: [
     'index.js'
   ],
 
-  frameworks: ['mocha', 'chai'],
+  frameworks: ['mocha', 'chai-sinon', 'chai'],
 
   preprocessors: {
     'index.js': ['webpack']
   },
 
-  reporters: ['mocha'],
+  reporters: ['mocha', 'coverage'],
+  coverageReporter: {
+    reporters: [{
+      type: 'lcov',
+      dir: '../coverage',
+      subdir: '.'
+    },
+    {
+      type: 'text-summary',
+      dir: '../coverage',
+      subdir: '.'
+    }
+    ]
+  },
+  webpackMiddleware: {
+    logLevel: 'silent'
+  },
 
   webpack: webpackConfig,
 
@@ -63,8 +95,18 @@ module.exports = {
     'karma-mocha',
     'karma-chai',
     'karma-mocha-reporter',
-    'karma-sourcemap-loader'
+    'karma-sourcemap-loader',
+    'karma-chai-sinon',
+    'karma-coverage',
+    'karma-chrome-launcher'
   ],
-  browsers: ['Chrome'],
+  browsers: browsers,
+  // custom launchers
+  customLaunchers: {
+    Chrome_travis_ci: {
+      base: 'Chrome',
+      flags: ['--no-sandbox']
+    }
+  },
   concurrency: Infinity
 }

@@ -22,7 +22,7 @@ export function convertPatternToRegexp (pattern) {
 }
 
 // =================== DOM related ===================
-
+/* istanbul ignore next */
 function renderMoreButton ({name, text, link} = {}) {
   if (!name || !text) {
     return
@@ -42,7 +42,7 @@ function renderMoreButton ({name, text, link} = {}) {
  * @param {Object} options options
  * @param {boolean} options.update If this is an update operation
  */
-export function createMoreButtonWrapper (buttonGroup, options = {}) {
+export /* istanbul ignore next */ function createMoreButtonWrapper (buttonGroup, options = {}) {
   if (!Array.isArray(buttonGroup)) {
     buttonGroup = []
   }
@@ -82,7 +82,7 @@ export function createMoreButtonWrapper (buttonGroup, options = {}) {
  * Create page mask to cover header
  * Mainly used in dialog within iframes
  */
-export function createPageMask () {
+export /* istanbul ignore next */ function createPageMask () {
   let mask = document.createElement('mip-fixed')
   mask.classList.add('mip-shell-header-mask')
   document.body.appendChild(mask)
@@ -90,14 +90,28 @@ export function createPageMask () {
   return mask
 }
 
-export function toggleInner (element, toggle, skipTransition) {
+/**
+ * Toggle something
+ *
+ * @param {HTMLElement} element
+ * @param {boolean} toggle
+ * @param {Object} options
+ * @param {boolean} options.skipTransition Show result without transition
+ * @param {boolean} options.transitionName Transition name. Defaults to 'fade'
+ */
+export /* istanbul ignore next */ function toggleInner (element, toggle, {skipTransition, transitionName = 'fade'} = {}) {
   if (skipTransition) {
     css(element, 'display', toggle ? 'block' : 'none')
     return
   }
+  let display = element.style.display
+  if ((toggle && display === 'block') ||
+    (!toggle && display === 'none')) {
+    return
+  }
 
   let direction = toggle ? 'enter' : 'leave'
-  element.classList.add(`fade-${direction}`, `fade-${direction}-active`)
+  element.classList.add(`${transitionName}-${direction}`, `${transitionName}-${direction}-active`)
   css(element, 'display', 'block')
   // trigger layout
   /* eslint-disable no-unused-expressions */
@@ -105,12 +119,12 @@ export function toggleInner (element, toggle, skipTransition) {
   /* eslint-enable no-unused-expressions */
 
   whenTransitionEnds(element, 'transition', () => {
-    element.classList.remove(`fade-${direction}-to`, `fade-${direction}-active`)
+    element.classList.remove(`${transitionName}-${direction}-to`, `${transitionName}-${direction}-active`)
     css(element, 'display', toggle ? 'block' : 'none')
   })
 
   nextFrame(() => {
-    element.classList.add(`fade-${direction}-to`)
-    element.classList.remove(`fade-${direction}`)
+    element.classList.add(`${transitionName}-${direction}-to`)
+    element.classList.remove(`${transitionName}-${direction}`)
   })
 }
