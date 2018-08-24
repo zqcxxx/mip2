@@ -76,7 +76,7 @@ module.exports = function ({types: t}) {
 
         nodePath.replaceWithSourceString(req(moduleObject))
 
-        nodePath.skip()
+        // nodePath.skip()
       }
     }
   }

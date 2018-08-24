@@ -53,7 +53,7 @@ describe.only('test rollup-plugin-babel config', function () {
     })
 
     // console.log(result.code)
-    // expect(result.code).to.contain('console.log')
+    expect(result.code).to.contain('console.log')
   })
 
   it('should be generate injected child component js successfully', async function () {
@@ -91,9 +91,42 @@ describe.only('test rollup-plugin-babel config', function () {
     expect(result.code).to.contain('mip-example-item')
   })
 
-  it.only('should be generate require.context successfully', async function () {
+  it('should be generate require.context successfully', async function () {
     let options = Object.assign({}, commonOptions, {
       filename: path.resolve(__dirname, '../../../../mock/fragment-files/require-context.js'),
+      dir: path.resolve(__dirname, '../../../../mock/fragment-files')
+    })
+
+    let bundler = await rollup.rollup({
+      input: options.filename,
+      plugins: [
+        unbundleConfigFactory(options),
+        babelConfigFactory({
+          proxy: {
+            'https://path/to/sth': 'abc'
+          },
+          dir: options.dir
+        })
+      ]
+    })
+
+    let result = await bundler.generate({
+      file: path.resolve(options.outputPath, 'index.js'),
+      name: 'haha',
+      sourcemap: true,
+      format: 'amd',
+      amd: {
+        id: 'test-amd-id'
+      }
+    })
+
+    // console.log(result.code)
+    // expect(result.code).to.contain('console.log')
+  })
+
+  it.skip('should be generate require.ensure successfully', async function () {
+    let options = Object.assign({}, commonOptions, {
+      filename: path.resolve(__dirname, '../../../../mock/fragment-files/require-ensure.js'),
       dir: path.resolve(__dirname, '../../../../mock/fragment-files')
     })
 

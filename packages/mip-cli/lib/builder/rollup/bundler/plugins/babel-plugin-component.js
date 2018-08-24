@@ -69,7 +69,7 @@ module.exports = function ({types: t}) {
           )
         ])
 
-        nodePath.skip()
+        // nodePath.skip()
       }
     }
   }
