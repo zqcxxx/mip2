@@ -8,6 +8,7 @@ const {resolveModule} = require('../../../../utils/helper')
 
 module.exports = function (options = {}) {
   let config = {
+    include: ['**/*.vue', '**/*.js'],
     exclude: 'node_modules/**',
     babelrc: false,
     runtimeHelpers: true,
@@ -46,8 +47,9 @@ module.exports = function (options = {}) {
         }
       ],
       // require.resolve('../plugins/babel-plugin-require-ensure'),
-      require.resolve('../plugins/babel-plugin-require-context'),
-      require.resolve('../plugins/babel-plugin-dynamic-dependencies')
+      require.resolve('../plugins/babel-plugin-require-context')
+      // ,
+      // require.resolve('../plugins/babel-plugin-dynamic-dependencies')
     ]
   }
 

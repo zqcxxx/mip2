@@ -1,9 +1,19 @@
+<template>
+  <div>{{ name }}</div>
+</template>
+
+<script>
+
 import {sayHi} from './utils'
 import {sayBye} from '../../common/utils'
-
-import item from './mip-example-item'
+import '../../common/common.less'
 
 export default {
+  data () {
+    return {
+      name: 'haha'
+    }
+  },
   mounted () {
     sayHi()
 
@@ -13,8 +23,7 @@ export default {
   },
   destroyed () {
     sayBye()
-  },
-  components: {
-    item
   }
 }
+
+</script>

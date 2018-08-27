@@ -18,15 +18,11 @@ const inline = require('postcss-url/src/type/inline')
 const {prepareAsset} = require('postcss-url/src/lib/paths')
 const fs = require('fs-extra')
 const sharedAsset = require('./asset')
-// const {pathFormat} = require('../../../../../utils/helper')
 
 const aliasRegExp = /^~?@\//
-const nodeModulesExp = /^~?@?[a-zA-Z]/
+const nodeModulesExp = /^~?(@?[a-zA-Z])/
 
 module.exports = {
-  options (options) {
-    // return
-  },
   plugins (options) {
     let assetOpts = sharedAsset(options)
 
@@ -38,7 +34,7 @@ module.exports = {
           }
 
           if (nodeModulesExp.test(asset)) {
-            return path.resolve(options.dir, 'node_modules', asset.replace(nodeModulesExp, ''))
+            return path.resolve(options.dir, 'node_modules', asset.replace(nodeModulesExp, '$1'))
           }
 
           return path.resolve(baseDir, asset)
@@ -48,15 +44,22 @@ module.exports = {
         browsers: ['> 1%', 'last 2 versions', 'ie 9-10']
       }),
       url({
-        url (asset, dir, options, decl, warn, result, addDependency) {
-          if (aliasRegExp.test(asset.url)) {
-            asset = prepareAsset(asset.url.replace(aliasRegExp, ''), dir, decl)
+        url (asset, dir, opts, decl, warn, result, addDependency) {
+          if (aliasRegExp.test(asset.originUrl)) {
+            let absolute = path.resolve(options.dir, asset.originUrl.replace(aliasRegExp, ''))
+            let relative = path.relative(dir.from, absolute)
+            asset = prepareAsset(relative, dir, decl)
+          } else if (nodeModulesExp.test(asset.originUrl)) {
+            let absolute = path.resolve(options.dir, 'node_modules', asset.originUrl.replace(nodeModulesExp, '$1'))
+            let relative = path.relative(dir.from, absolute)
+            asset = prepareAsset(relative, dir, decl)
           }
 
-          return inline(asset, dir, options, decl, warn, result, addDependency)
+          return inline(asset, dir, opts, decl, warn, result, addDependency)
         },
         maxSize: 5,
-        basePath: path.dirname(options.filename),
+        // 当设置了 basePath 之后会优先去找 path.resolve(basePath, id) 所以不能配这个
+        // basePath: path.dirname(options.filename),
         assetsPath: assetOpts.outputPath,
         fallback (asset, dir, opts, decl, warn, result, addDependency) {
           let file = getFile(asset, opts, dir, warn)
@@ -75,5 +78,8 @@ module.exports = {
         }
       })
     ]
+  },
+  preprocess (options) {
+
   }
 }

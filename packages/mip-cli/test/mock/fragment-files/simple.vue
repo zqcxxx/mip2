@@ -16,7 +16,8 @@ mip-img {
 </style>
 
 <script>
-// import './index.js'
+// import './index.less'
+
 export default {
   data () {
     return {

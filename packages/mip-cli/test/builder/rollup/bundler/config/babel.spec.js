@@ -14,7 +14,7 @@ const unbundleConfigFactory = require('../../../../../lib/builder/rollup/bundler
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
-describe.only('test rollup-plugin-babel config', function () {
+describe.skip('test rollup-plugin-babel config', function () {
   let commonOptions = {
     outputPath: path.resolve(__dirname, 'dist')
   }
@@ -124,9 +124,10 @@ describe.only('test rollup-plugin-babel config', function () {
     // expect(result.code).to.contain('console.log')
   })
 
-  it.skip('should be generate require.ensure successfully', async function () {
+  it('should be generate dynamic import successfully', async function () {
+    console.log('---------- in here ----------')
     let options = Object.assign({}, commonOptions, {
-      filename: path.resolve(__dirname, '../../../../mock/fragment-files/require-ensure.js'),
+      filename: path.resolve(__dirname, '../../../../mock/fragment-files/dynamic-import.js'),
       dir: path.resolve(__dirname, '../../../../mock/fragment-files')
     })
 
@@ -143,6 +144,8 @@ describe.only('test rollup-plugin-babel config', function () {
       ]
     })
 
+    console.log(bundler.modules[0])
+
     let result = await bundler.generate({
       file: path.resolve(options.outputPath, 'index.js'),
       name: 'haha',
@@ -153,7 +156,11 @@ describe.only('test rollup-plugin-babel config', function () {
       }
     })
 
-    console.log(result.code)
+    // console.log(result.modules)
+    // console.log(result.modules.removedExports)
+    console.log('---------------------------')
+
+    // console.log(result.code)
     // expect(result.code).to.contain('console.log')
   })
 

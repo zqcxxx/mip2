@@ -13,8 +13,15 @@ module.exports = function (options) {
   let config = {
     extensions: ['.css', '.less', '.styl', '.stylus'],
     extract: false,
-    plugins: plugins
+    plugins: plugins,
+    onImport (id) {
+      console.log(id)
+    }
   }
+
+  // if (opts) {
+  //   Object.assign(config, opts)
+  // }
 
   return postcss(config)
 }

@@ -11,7 +11,7 @@ module.exports = function (options) {
   let plugins = shared.plugins(options)
 
   return vue({
-    include: '**/*.vue',
+    // include: '**/*.vue',
     css: true,
     style: {
       // postcssOptions: opts,

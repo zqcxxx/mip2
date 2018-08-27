@@ -10,7 +10,7 @@ const postcssConfigFactory = require('../../../../../lib/builder/rollup/bundler/
 const fs = require('fs-extra')
 const {expect} = require('chai')
 
-describe('test rollup postcss plugin config', function () {
+describe.only('test rollup postcss plugin config', function () {
   let common = {
     outputPath: path.resolve(__dirname, 'dist'),
     asset: 'https://www.baidu.com/'

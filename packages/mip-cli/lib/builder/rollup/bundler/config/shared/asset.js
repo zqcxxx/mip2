@@ -39,7 +39,7 @@ module.exports = function (options) {
       return asset
     },
     get name () {
-      return asset.basename + '-' + asset.hash + asset.extname
+      return name
     },
     get url () {
       return url
