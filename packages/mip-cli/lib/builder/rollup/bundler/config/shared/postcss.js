@@ -17,10 +17,11 @@ const getFile = require('postcss-url/src/lib/get-file')
 const inline = require('postcss-url/src/type/inline')
 const {prepareAsset} = require('postcss-url/src/lib/paths')
 const fs = require('fs-extra')
+// const resolver = require('../../../../utils/resolver')
 const sharedAsset = require('./asset')
 
-const aliasRegExp = /^~?@\//
-const nodeModulesExp = /^~?(@?[a-zA-Z])/
+// const aliasRegExp = /^~?@\//
+// const nodeModulesExp = /^~?(@?[a-zA-Z])/
 
 module.exports = {
   plugins (options) {
@@ -80,6 +81,10 @@ module.exports = {
     ]
   },
   preprocess (options) {
+    return {
+      less: {
 
+      }
+    }
   }
 }

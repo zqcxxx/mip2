@@ -11,12 +11,9 @@ module.exports = function (options) {
   let plugins = shared.plugins(options)
 
   let config = {
-    extensions: ['.css', '.less', '.styl', '.stylus'],
+    extensions: ['.css', '.less'/* , '.styl', '.stylus' */],
     extract: false,
-    plugins: plugins,
-    onImport (id) {
-      console.log(id)
-    }
+    plugins: plugins
   }
 
   // if (opts) {
